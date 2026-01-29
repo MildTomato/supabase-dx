@@ -1,0 +1,48 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "npm",
+      "script": "build",
+      "path": "extension",
+      "label": "npm: build - extension",
+      "group": "build"
+    },
+    {
+      "type": "npm",
+      "script": "dev",
+      "path": "extension",
+      "label": "npm: dev - extension",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "type": "shell",
+      "label": "Build CLI",
+      "command": "go",
+      "args": ["build", "-o", "bin/supa", "./cmd/supa"],
+      "options": {
+        "cwd": "${workspaceFolder}/cli"
+      },
+      "group": "build"
+    },
+    {
+      "type": "shell",
+      "label": "Test CLI",
+      "command": "go",
+      "args": ["test", "./..."],
+      "options": {
+        "cwd": "${workspaceFolder}/cli"
+      },
+      "group": "test"
+    },
+    {
+      "label": "Build All",
+      "dependsOn": ["Build CLI", "npm: build - extension"],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    }
+  ]
+}

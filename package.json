@@ -1,0 +1,24 @@
+{
+  "name": "supabase-dx",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Supabase DX - CLI + VS Code extension for experimenting with Supabase developer experience ideas",
+  "scripts": {
+    "build": "pnpm build:cli && pnpm build:extension",
+    "build:cli": "cd cli && pnpm run build",
+    "build:extension": "cd extension && pnpm run build",
+    "dev": "pnpm dev:cli",
+    "dev:cli": "cd cli && pnpm run dev",
+    "dev:extension": "cd extension && pnpm run dev",
+    "test": "pnpm test:cli && pnpm test:extension",
+    "test:cli": "cd cli && pnpm run test",
+    "test:extension": "cd extension && pnpm run test",
+    "lint": "cd extension && pnpm run lint",
+    "clean": "rm -rf cli/dist extension/dist",
+    "package": "cd extension && pnpm run package"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0"
+  },
+  "packageManager": "pnpm@9.0.0"
+}

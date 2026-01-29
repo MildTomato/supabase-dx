@@ -1,0 +1,43 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run Extension",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}/extension",
+        "${workspaceFolder}/examples/sample-project"
+      ],
+      "outFiles": ["${workspaceFolder}/extension/dist/**/*.js"],
+      "preLaunchTask": "npm: build - extension"
+    },
+    {
+      "name": "Debug CLI - Pull",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/cli/cmd/supa",
+      "args": ["pull", "--dry-run"],
+      "cwd": "${workspaceFolder}/examples/sample-project"
+    },
+    {
+      "name": "Debug CLI - Push",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/cli/cmd/supa",
+      "args": ["push", "--dry-run"],
+      "cwd": "${workspaceFolder}/examples/sample-project"
+    },
+    {
+      "name": "Debug CLI - Watch",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/cli/cmd/supa",
+      "args": ["watch"],
+      "cwd": "${workspaceFolder}/examples/sample-project"
+    }
+  ]
+}

@@ -1,0 +1,133 @@
+{
+  "name": "supabase-dx",
+  "displayName": "Supabase DX",
+  "description": "Experimental Supabase developer experience tools",
+  "version": "0.0.1",
+  "publisher": "supabase",
+  "icon": "images/icon.png",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "workspaceContains:**/supabase/config.toml"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "supabase-dx.login",
+        "title": "Supabase: Login"
+      },
+      {
+        "command": "supabase-dx.pull",
+        "title": "Supabase: Pull"
+      },
+      {
+        "command": "supabase-dx.push",
+        "title": "Supabase: Push"
+      },
+      {
+        "command": "supabase-dx.watch",
+        "title": "Supabase: Start Watch"
+      },
+      {
+        "command": "supabase-dx.stopWatch",
+        "title": "Supabase: Stop Watch"
+      },
+      {
+        "command": "supabase-dx.generateTypes",
+        "title": "Supabase: Generate TypeScript Types"
+      },
+      {
+        "command": "supabase-dx.showMenu",
+        "title": "Supabase: Show Menu"
+      },
+      {
+        "command": "supabase-dx.refresh",
+        "title": "Supabase: Refresh Projects"
+      },
+      {
+        "command": "supabase-dx.openProject",
+        "title": "Supabase: Open Project Dashboard"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "supabaseDx",
+          "title": "Supabase",
+          "icon": "$(database)"
+        }
+      ]
+    },
+    "views": {
+      "supabaseDx": [
+        {
+          "id": "supabaseDxProjects",
+          "name": "Projects",
+          "icon": "$(database)",
+          "contextualTitle": "Supabase Projects"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "supabase-dx.refresh",
+          "when": "view == supabaseDxProjects",
+          "group": "navigation"
+        },
+        {
+          "command": "supabase-dx.login",
+          "when": "view == supabaseDxProjects"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "supabase-dx.openProject",
+          "when": "viewItem == project",
+          "group": "inline"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Supabase DX",
+      "properties": {
+        "supabase-dx.cliPath": {
+          "type": "string",
+          "default": "supa",
+          "description": "Path to the supa CLI binary"
+        },
+        "supabase-dx.autoWatch": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically start watch mode when opening a Supabase project"
+        },
+        "supabase-dx.typesOnPull": {
+          "type": "boolean",
+          "default": true,
+          "description": "Generate TypeScript types when running pull"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.js",
+    "dev": "node esbuild.js --watch",
+    "package": "vsce package",
+    "lint": "eslint src --ext ts",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^2.22.0",
+    "esbuild": "^0.20.0",
+    "eslint": "^8.56.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.0.0"
+  }
+}

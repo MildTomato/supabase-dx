@@ -279,6 +279,13 @@ export class SupabaseClient {
   ): Promise<components['schemas']['AuthConfigResponse']> {
     return this.request('GET', `/v1/projects/${projectRef}/config/auth`);
   }
+
+  // Database connection info
+  async getPoolerConfig(
+    projectRef: string
+  ): Promise<components['schemas']['V1SupavisorConfigResponse']> {
+    return this.request('GET', `/v1/projects/${projectRef}/config/database/pooler`);
+  }
 }
 
 export function createClient(token: string): SupabaseClient {

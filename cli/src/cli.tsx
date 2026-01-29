@@ -6,6 +6,8 @@ import { projectsCommand } from './commands/projects.js';
 import { pullCommand } from './commands/pull.js';
 import { pushCommand } from './commands/push.js';
 import { watchCommand } from './commands/watch.js';
+import { devCommand } from './commands/dev.js';
+import { schemaDiffCommand, schemaPullCommand, schemaStatusCommand } from './commands/schema.js';
 
 // Load .env files silently (simple implementation to avoid dotenv noise)
 function loadEnvFile(path: string) {
@@ -91,6 +93,7 @@ program
   .option('--types-only', 'Only generate TypeScript types')
   .option('--schemas <schemas>', 'Schemas to include for type generation', 'public')
   .option('--json', 'Output as JSON')
+  .option('-v, --verbose', 'Show detailed pg-delta logging')
   .action(pullCommand);
 
 // Push command
@@ -103,6 +106,7 @@ program
   .option('--migrations-only', 'Only apply migrations')
   .option('--config-only', 'Only apply config changes (api, auth settings)')
   .option('--json', 'Output as JSON')
+  .option('-v, --verbose', 'Show detailed pg-delta logging')
   .action(pushCommand);
 
 // Watch command
@@ -114,5 +118,40 @@ program
   .option('--no-branch-watch', 'Disable git branch watching')
   .option('--json', 'Output as JSON (events as newline-delimited JSON)')
   .action(watchCommand);
+
+// Dev command - watch and sync schema changes
+program
+  .command('dev')
+  .description('Watch for schema changes and sync to remote database')
+  .option('-p, --profile <name>', 'Profile to use (from ./supabase/config.json)')
+  .option('--debounce <ms>', 'Debounce interval for file changes (e.g., 500ms, 1s)', '500ms')
+  .option('--types-interval <interval>', 'Interval for regenerating types (e.g., 30s, 1m)', '30s')
+  .option('--no-branch-watch', 'Disable git branch watching')
+  .option('--dry-run', 'Show what would be synced without applying')
+  .option('-v, --verbose', 'Show detailed pg-delta logging')
+  .option('--json', 'Output as JSON (events as newline-delimited JSON)')
+  .action(devCommand);
+
+// Schema command group (Atlas-based declarative schema management)
+const schema = program
+  .command('schema')
+  .description('Declarative schema management (requires Atlas)');
+
+schema
+  .command('status')
+  .description('Check Atlas availability')
+  .action(schemaStatusCommand);
+
+schema
+  .command('diff')
+  .description('Compare local schema with remote database')
+  .option('-p, --profile <name>', 'Profile to use')
+  .action(schemaDiffCommand);
+
+schema
+  .command('pull')
+  .description('Pull remote database schema to local files')
+  .option('-p, --profile <name>', 'Profile to use')
+  .action(schemaPullCommand);
 
 program.parse();

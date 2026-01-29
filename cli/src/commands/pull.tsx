@@ -23,6 +23,7 @@ import {
   type ProjectConfig,
 } from '../lib/sync.js';
 import { ConfigDiffSummary } from '../components/ConfigDiff.js';
+import { pullSchemaWithPgDelta, setVerbose } from '../lib/pg-delta.js';
 
 interface PullState {
   step: 'loading' | 'fetching' | 'confirm' | 'applying' | 'done' | 'error';
@@ -35,6 +36,7 @@ interface PullState {
   authDiffs?: ConfigDiff[];
   configUpdated?: boolean;
   typesUpdated?: boolean;
+  schemaUpdated?: boolean;
   error?: string;
 }
 
@@ -44,9 +46,12 @@ interface PullAppProps {
   dryRun: boolean;
   typesOnly: boolean;
   schemas: string;
+  verbose: boolean;
 }
 
-function PullApp({ cwd, profileName, dryRun, typesOnly, schemas }: PullAppProps) {
+function PullApp({ cwd, profileName, dryRun, typesOnly, schemas, verbose }: PullAppProps) {
+  // Set verbose mode for pg-delta logging
+  setVerbose(verbose);
   const { exit } = useApp();
   const [state, setState] = useState<PullState>({ step: 'loading' });
 
@@ -190,6 +195,7 @@ function PullApp({ cwd, profileName, dryRun, typesOnly, schemas }: PullAppProps)
   interface PullResult {
     configUpdated: boolean;
     typesUpdated: boolean;
+    schemaUpdated: boolean;
   }
 
   // Shared pull logic - writes config and types only if changed
@@ -249,14 +255,48 @@ function PullApp({ cwd, profileName, dryRun, typesOnly, schemas }: PullAppProps)
       // Types generation failed, ignore
     }
 
-    return { configUpdated, typesUpdated };
+    // Pull remote schema using pg-delta
+    let schemaUpdated = false;
+    const dbPassword = process.env.SUPABASE_DB_PASSWORD;
+    if (dbPassword) {
+      try {
+        const poolerConfig = await client.getPoolerConfig(projectRef);
+        const sessionPooler = poolerConfig.find((p: { pool_mode: string; database_type: string }) => 
+          p.pool_mode === 'session' && p.database_type === 'PRIMARY'
+        );
+        const fallbackPooler = poolerConfig.find((p: { database_type: string }) => p.database_type === 'PRIMARY');
+        const pooler = sessionPooler || fallbackPooler;
+        
+        if (pooler?.connection_string) {
+          const connectionString = pooler.connection_string
+            .replace('[YOUR-PASSWORD]', dbPassword)
+            .replace(':6543/', ':5432/');
+          const schemaDir = join(cwd, 'supabase', 'schema');
+          
+          const result = await pullSchemaWithPgDelta(connectionString, schemaDir);
+          
+          if (result.success && result.files.length > 0) {
+            // Write the files
+            for (const file of result.files) {
+              mkdirSync(dirname(file.path), { recursive: true });
+              writeFileSync(file.path, file.content);
+            }
+            schemaUpdated = true;
+          }
+        }
+      } catch {
+        // Schema pull failed, ignore
+      }
+    }
+
+    return { configUpdated, typesUpdated, schemaUpdated };
   }
 
-  // Direct pull (no config changes, just types)
+  // Direct pull (no config changes, just types/schema)
   async function applyPullDirect(projectRef: string, token: string) {
     try {
       const result = await doPull(projectRef, token, false);
-      setState((s) => ({ ...s, step: 'done', configUpdated: result.configUpdated, typesUpdated: result.typesUpdated }));
+      setState((s) => ({ ...s, step: 'done', configUpdated: result.configUpdated, typesUpdated: result.typesUpdated, schemaUpdated: result.schemaUpdated }));
       setTimeout(() => exit(), 100);
     } catch (error) {
       setState({ step: 'error', error: error instanceof Error ? error.message : 'Failed to pull' });
@@ -282,6 +322,7 @@ function PullApp({ cwd, profileName, dryRun, typesOnly, schemas }: PullAppProps)
         step: 'done',
         configUpdated: result.configUpdated,
         typesUpdated: result.typesUpdated,
+        schemaUpdated: result.schemaUpdated,
       }));
       setTimeout(() => exit(), 100);
     } catch (error) {
@@ -411,7 +452,7 @@ function PullApp({ cwd, profileName, dryRun, typesOnly, schemas }: PullAppProps)
     );
   }
 
-  const anythingUpdated = state.configUpdated || state.typesUpdated;
+  const anythingUpdated = state.configUpdated || state.typesUpdated || state.schemaUpdated;
 
   return (
     <Box flexDirection="column" padding={1}>
@@ -422,8 +463,14 @@ function PullApp({ cwd, profileName, dryRun, typesOnly, schemas }: PullAppProps)
       
       {renderDoneDetails()}
 
-      {state.typesUpdated && (
+      {state.schemaUpdated && (
         <Box marginTop={state.configUpdated ? 1 : 0}>
+          <Text color="green">Wrote supabase/schema/schema.sql</Text>
+        </Box>
+      )}
+
+      {state.typesUpdated && (
+        <Box marginTop={state.configUpdated || state.schemaUpdated ? 1 : 0}>
           <Text color="green">Wrote supabase/types/database.ts</Text>
         </Box>
       )}
@@ -437,6 +484,7 @@ interface PullOptions {
   typesOnly?: boolean;
   schemas?: string;
   json?: boolean;
+  verbose?: boolean;
 }
 
 export async function pullCommand(options: PullOptions) {
@@ -444,6 +492,9 @@ export async function pullCommand(options: PullOptions) {
   const dryRun = options.plan ?? false;
   const typesOnly = options.typesOnly ?? false;
   const schemas = options.schemas ?? 'public';
+  
+  // Set verbose mode for pg-delta logging
+  setVerbose(options.verbose ?? false);
 
   if (options.json) {
     // JSON mode - run without Ink
@@ -530,6 +581,7 @@ export async function pullCommand(options: PullOptions) {
       dryRun={dryRun}
       typesOnly={typesOnly}
       schemas={schemas}
+      verbose={options.verbose ?? false}
     />
   );
 }

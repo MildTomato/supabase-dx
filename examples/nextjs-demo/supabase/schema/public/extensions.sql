@@ -1,0 +1,5 @@
+-- Extensions for public schema
+-- Note: Supabase already has common extensions pre-installed
+-- These are here for documentation but won't run on PGlite dev database
+-- CREATE EXTENSION IF NOT EXISTS "uuid-ossp" SCHEMA extensions;
+-- CREATE EXTENSION IF NOT EXISTS "pgcrypto" SCHEMA extensions;

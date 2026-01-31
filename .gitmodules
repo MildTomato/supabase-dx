@@ -1,3 +1,9 @@
 [submodule "external/config-schema"]
 	path = external/config-schema
 	url = https://github.com/dswbx/experiment-config-json-schema.git
+[submodule "vendor/supabase-auth"]
+	path = vendor/supabase-auth
+	url = https://github.com/supabase/auth.git
+[submodule "vendor/supabase-postgres"]
+	path = vendor/supabase-postgres
+	url = https://github.com/supabase/postgres.git

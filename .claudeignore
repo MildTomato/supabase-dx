@@ -1,0 +1,35 @@
+# Keep in sync with .cursorignore so Claude Code cannot access files Cursor AI cannot access.
+
+# Environment files (secrets)
+.env
+.env.local
+.env.*
+
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+out/
+*.vsix
+
+# External reference (private)
+# external/cli/
+
+# Generated files
+cli/schema/config.schema.json
+external/config-schema/dist/
+
+# Logs and caches
+*.log
+.turbo/
+.cache/
+
+# Lock files
+pnpm-lock.yaml
+bun.lock
+
+# Next.js
+examples/nextjs-demo/.next/
+examples/nextjs-demo/node_modules/

@@ -13,7 +13,7 @@ out/
 *.vsix
 
 # External reference (private)
-external/cli/
+# external/cli/
 
 # Generated files
 cli/schema/config.schema.json

@@ -7,3 +7,6 @@
 [submodule "vendor/supabase-postgres"]
 	path = vendor/supabase-postgres
 	url = https://github.com/supabase/postgres.git
+[submodule "external/auth"]
+	path = external/auth
+	url = https://github.com/supabase/auth.git

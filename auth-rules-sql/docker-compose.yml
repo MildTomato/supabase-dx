@@ -1,0 +1,81 @@
+services:
+  postgres:
+    image: postgres:15
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  auth:
+    image: supabase/gotrue:v2.170.0
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "9999:9999"
+    environment:
+      # Database
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:root@postgres:5432/postgres
+      GOTRUE_DB_MIGRATIONS_PATH: /migrations
+      DB_NAMESPACE: auth
+
+      # API
+      GOTRUE_API_HOST: 0.0.0.0
+      PORT: 9999
+      API_EXTERNAL_URL: http://localhost:9999
+
+      # JWT - must match PostgREST
+      GOTRUE_JWT_SECRET: super-secret-jwt-key-at-least-32-characters
+      GOTRUE_JWT_EXP: 3600
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+
+      # Signup
+      GOTRUE_DISABLE_SIGNUP: "false"
+      GOTRUE_SITE_URL: http://localhost:3000
+      GOTRUE_MAILER_AUTOCONFIRM: "true"
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
+
+      # Logging
+      GOTRUE_LOG_LEVEL: debug
+
+  postgrest:
+    image: postgrest/postgrest:v12.2.3
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      # Database connection
+      PGRST_DB_URI: postgres://authenticator:authenticator@postgres:5432/postgres
+
+      # Schema config - api first, then public fallback
+      PGRST_DB_SCHEMAS: api,public
+      PGRST_DB_EXTRA_SEARCH_PATH: auth,claims
+
+      # Anonymous role (unauthenticated requests)
+      PGRST_DB_ANON_ROLE: anon
+
+      # JWT - must match Auth service
+      PGRST_JWT_SECRET: super-secret-jwt-key-at-least-32-characters
+      PGRST_JWT_ROLE_CLAIM_KEY: .role
+
+      # Server
+      PGRST_SERVER_HOST: 0.0.0.0
+      PGRST_SERVER_PORT: 3000
+      PGRST_LOG_LEVEL: info
+
+volumes:
+  postgres_data:

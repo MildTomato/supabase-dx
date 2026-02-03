@@ -129,11 +129,11 @@ db-extra-search-path = "auth, auth_rules, auth_rules_claims"
 ## Rule Syntax
 
 ```sql
-SELECT auth.rule('table_name',
-  auth.select('col1', 'col2', 'col3'),           -- columns to expose
-  auth.eq('column', auth.user_id()),             -- filter by user
-  auth.eq('column', auth.one_of('claim_name')),  -- filter by claim array
-  auth.in('column', 'claim', auth.check(...))    -- filter with role check
+SELECT auth_rules.rule('table_name',
+  auth_rules.select('col1', 'col2', 'col3'),              -- columns to expose
+  auth_rules.eq('column', auth_rules.user_id()),          -- filter by user
+  auth_rules.eq('column', auth_rules.one_of('claim_name')), -- filter by claim array
+  auth_rules.in('column', 'claim', auth_rules.check(...))   -- filter with role check
 );
 ```
 
@@ -149,8 +149,8 @@ Rules compile to views. Filters become WHERE clauses.
 | Column filtering | No                      | Yes                       |
 | Explicit errors  | No (silent)             | Yes (triggers for writes) |
 | Rule visibility  | Hidden in policies      | SQL rule definitions      |
-| Existing tables  | Policies added to table | View wraps table          |
-| Migration        | Modify table            | Add view, table untouched |
+| Existing tables  | Policies added to table | View wraps table            |
+| Migration        | Modify table            | Add view, table untouched   |
 
 ---
 

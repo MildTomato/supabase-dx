@@ -1,23 +1,24 @@
 -- =============================================================================
--- AUTH-RULES SCHEMA SETUP
+-- AUTH RULES: SCHEMA SETUP
 -- =============================================================================
--- Requires: Supabase auth schema (external/auth/migrations)
--- Provides: api, claims schemas + auth-rules functions in auth schema
---
--- Load order:
---   1. external/auth/migrations/* (provides auth.uid, auth.role, auth.users, etc.)
---   2. This file and subsequent auth-rules SQL files
+-- Creates schemas for the auth-rules system.
+-- Assumes running on Supabase (auth.uid, authenticated role, etc. exist)
 
--- API schema: Generated views that wrap public tables with auth
-CREATE SCHEMA IF NOT EXISTS api;
+-- System schema: tables and functions for auth-rules
+CREATE SCHEMA IF NOT EXISTS auth_rules;
 
--- Claims schema: Views that expose user relationships
-CREATE SCHEMA IF NOT EXISTS claims;
+-- Claims schema: views that expose user relationships
+CREATE SCHEMA IF NOT EXISTS auth_rules_claims;
 
--- Grant usage to authenticated users
-GRANT USAGE ON SCHEMA api TO authenticated;
-GRANT USAGE ON SCHEMA claims TO authenticated;
+-- Data API schema: generated views that wrap public tables
+CREATE SCHEMA IF NOT EXISTS data_api;
 
--- Default privileges for future objects in these schemas
-ALTER DEFAULT PRIVILEGES IN SCHEMA api GRANT SELECT ON TABLES TO authenticated;
-ALTER DEFAULT PRIVILEGES IN SCHEMA claims GRANT SELECT ON TABLES TO authenticated;
+-- Grants
+GRANT USAGE ON SCHEMA auth_rules TO authenticated, service_role;
+GRANT USAGE ON SCHEMA auth_rules_claims TO anon, authenticated, service_role;
+GRANT USAGE ON SCHEMA data_api TO anon, authenticated, service_role;
+
+-- Default privileges
+ALTER DEFAULT PRIVILEGES IN SCHEMA auth_rules_claims GRANT SELECT ON TABLES TO anon, authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA data_api GRANT SELECT ON TABLES TO anon, authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA data_api GRANT INSERT, UPDATE, DELETE ON TABLES TO authenticated;

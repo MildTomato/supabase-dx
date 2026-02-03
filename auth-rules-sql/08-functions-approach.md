@@ -19,16 +19,16 @@ All data access goes through PostgreSQL functions. Functions validate inputs aga
 **Rule definition:**
 
 ```sql
-SELECT auth.rule('messages',
-  auth.select('id', 'content', 'user_id', 'created_at'),
-  auth.eq('user_id', auth.user_id())
+SELECT auth_rules.rule('messages',
+  auth_rules.select('id', 'content', 'user_id', 'created_at'),
+  auth_rules.eq('user_id', auth_rules.user_id())
 );
 ```
 
 **Generated function:**
 
 ```sql
-CREATE FUNCTION api.get_messages(
+CREATE FUNCTION data_api.get_messages(
   p_user_id UUID
 )
 RETURNS TABLE (id UUID, content TEXT, user_id UUID, created_at TIMESTAMPTZ)
@@ -75,16 +75,16 @@ await client.rpc('get_messages', { p_user_id: userId })
 **Rule definition:**
 
 ```sql
-SELECT auth.rule('projects',
-  auth.select('id', 'name', 'org_id', 'created_at'),
-  auth.eq('org_id', auth.one_of('org_ids'))
+SELECT auth_rules.rule('projects',
+  auth_rules.select('id', 'name', 'org_id', 'created_at'),
+  auth_rules.eq('org_id', auth_rules.one_of('org_ids'))
 );
 ```
 
 **Generated function:**
 
 ```sql
-CREATE FUNCTION api.get_projects(
+CREATE FUNCTION data_api.get_projects(
   p_org_id UUID
 )
 RETURNS TABLE (id UUID, name TEXT, org_id UUID, created_at TIMESTAMPTZ)
@@ -94,7 +94,7 @@ AS $$
 BEGIN
   -- Validate: org_id must be in user's org_ids claim
   IF NOT EXISTS (
-    SELECT 1 FROM claims.org_ids
+    SELECT 1 FROM auth_rules_claims.org_ids
     WHERE user_id = auth.uid() AND org_id = p_org_id
   ) THEN
     RAISE EXCEPTION 'org_id not in your organizations'
@@ -126,17 +126,17 @@ await client.rpc('get_projects', { p_org_id: orgId })
 **Rule definition:**
 
 ```sql
-SELECT auth.rule('messages',
-  auth.select('id', 'content', 'org_id', 'user_id'),
-  auth.eq('org_id', auth.one_of('org_ids')),
-  auth.eq('user_id', auth.user_id())
+SELECT auth_rules.rule('messages',
+  auth_rules.select('id', 'content', 'org_id', 'user_id'),
+  auth_rules.eq('org_id', auth_rules.one_of('org_ids')),
+  auth_rules.eq('user_id', auth_rules.user_id())
 );
 ```
 
 **Generated function:**
 
 ```sql
-CREATE FUNCTION api.get_messages(
+CREATE FUNCTION data_api.get_messages(
   p_org_id UUID,
   p_user_id UUID
 )
@@ -147,7 +147,7 @@ AS $$
 BEGIN
   -- Validate: org_id must be in user's org_ids claim
   IF NOT EXISTS (
-    SELECT 1 FROM claims.org_ids
+    SELECT 1 FROM auth_rules_claims.org_ids
     WHERE user_id = auth.uid() AND org_id = p_org_id
   ) THEN
     RAISE EXCEPTION 'org_id not in your organizations'
@@ -175,16 +175,16 @@ $$;
 **Rule definition:**
 
 ```sql
-SELECT auth.rule('org_billing',
-  auth.select('id', 'org_id', 'plan', 'amount'),
-  auth.in('org_id', 'org_ids', auth.check('org_roles', 'role', ARRAY['admin', 'owner']))
+SELECT auth_rules.rule('org_billing',
+  auth_rules.select('id', 'org_id', 'plan', 'amount'),
+  auth_rules.in('org_id', 'org_ids', auth_rules.check('org_roles', 'role', ARRAY['admin', 'owner']))
 );
 ```
 
 **Generated function:**
 
 ```sql
-CREATE FUNCTION api.get_org_billing(
+CREATE FUNCTION data_api.get_org_billing(
   p_org_id UUID
 )
 RETURNS TABLE (id UUID, org_id UUID, plan TEXT, amount NUMERIC)
@@ -194,7 +194,7 @@ AS $$
 BEGIN
   -- Validate: org_id must be in user's org_ids claim
   IF NOT EXISTS (
-    SELECT 1 FROM claims.org_ids
+    SELECT 1 FROM auth_rules_claims.org_ids
     WHERE user_id = auth.uid() AND org_id = p_org_id
   ) THEN
     RAISE EXCEPTION 'org_id not in your organizations'
@@ -203,7 +203,7 @@ BEGIN
 
   -- Validate: user must have admin or owner role in this org
   IF NOT EXISTS (
-    SELECT 1 FROM claims.org_roles
+    SELECT 1 FROM auth_rules_claims.org_roles
     WHERE user_id = auth.uid()
       AND org_id = p_org_id
       AND role IN ('admin', 'owner')
@@ -227,17 +227,17 @@ $$;
 **Rule definition:**
 
 ```sql
-SELECT auth.rule('messages',
-  auth.insert(),
-  auth.eq('user_id', auth.user_id()),
-  auth.eq('org_id', auth.one_of('org_ids'))
+SELECT auth_rules.rule('messages',
+  auth_rules.insert(),
+  auth_rules.eq('user_id', auth_rules.user_id()),
+  auth_rules.eq('org_id', auth_rules.one_of('org_ids'))
 );
 ```
 
 **Generated function:**
 
 ```sql
-CREATE FUNCTION api.insert_message(
+CREATE FUNCTION data_api.insert_message(
   p_org_id UUID,
   p_content TEXT
 )
@@ -250,7 +250,7 @@ DECLARE
 BEGIN
   -- Validate: org_id must be in user's org_ids claim
   IF NOT EXISTS (
-    SELECT 1 FROM claims.org_ids
+    SELECT 1 FROM auth_rules_claims.org_ids
     WHERE user_id = auth.uid() AND org_id = p_org_id
   ) THEN
     RAISE EXCEPTION 'org_id not in your organizations'
@@ -286,17 +286,17 @@ await client.rpc('insert_message', {
 **Rule definition:**
 
 ```sql
-SELECT auth.rule('messages',
-  auth.update(),
-  auth.eq('user_id', auth.user_id()),
-  auth.eq('org_id', auth.one_of('org_ids'))
+SELECT auth_rules.rule('messages',
+  auth_rules.update(),
+  auth_rules.eq('user_id', auth_rules.user_id()),
+  auth_rules.eq('org_id', auth_rules.one_of('org_ids'))
 );
 ```
 
 **Generated function:**
 
 ```sql
-CREATE FUNCTION api.update_message(
+CREATE FUNCTION data_api.update_message(
   p_id UUID,
   p_org_id UUID,
   p_content TEXT
@@ -310,7 +310,7 @@ DECLARE
 BEGIN
   -- Validate: org_id must be in user's org_ids claim
   IF NOT EXISTS (
-    SELECT 1 FROM claims.org_ids
+    SELECT 1 FROM auth_rules_claims.org_ids
     WHERE user_id = auth.uid() AND org_id = p_org_id
   ) THEN
     RAISE EXCEPTION 'org_id not in your organizations'
@@ -341,17 +341,17 @@ $$;
 **Rule definition:**
 
 ```sql
-SELECT auth.rule('messages',
-  auth.delete(),
-  auth.eq('user_id', auth.user_id()),
-  auth.eq('org_id', auth.one_of('org_ids'))
+SELECT auth_rules.rule('messages',
+  auth_rules.delete(),
+  auth_rules.eq('user_id', auth_rules.user_id()),
+  auth_rules.eq('org_id', auth_rules.one_of('org_ids'))
 );
 ```
 
 **Generated function:**
 
 ```sql
-CREATE FUNCTION api.delete_message(
+CREATE FUNCTION data_api.delete_message(
   p_id UUID,
   p_org_id UUID
 )
@@ -362,7 +362,7 @@ AS $$
 BEGIN
   -- Validate: org_id must be in user's org_ids claim
   IF NOT EXISTS (
-    SELECT 1 FROM claims.org_ids
+    SELECT 1 FROM auth_rules_claims.org_ids
     WHERE user_id = auth.uid() AND org_id = p_org_id
   ) THEN
     RAISE EXCEPTION 'org_id not in your organizations'
@@ -423,7 +423,7 @@ Developer experience stays the same. Under the hood, it's all validated function
 
 ## How Rules Generate Functions
 
-When `auth.rule()` is called:
+When `auth_rules.rule()` is called:
 
 1. Parse the rule definition
 2. Extract: table, action, columns, required filters

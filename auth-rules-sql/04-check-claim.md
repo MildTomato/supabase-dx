@@ -1,4 +1,4 @@
-# auth.check()
+# auth_rules.check()
 
 Filter by claim properties. Require specific roles, tiers, or statuses for access.
 
@@ -14,9 +14,9 @@ Basic membership checks answer "Is user in this org?" But sometimes you need "Wh
 You could create separate claims:
 
 ```sql
-claims.org_ids          -- all orgs
-claims.admin_org_ids    -- orgs where user is admin
-claims.owner_org_ids    -- orgs where user is owner
+auth_rules_claims.org_ids          -- all orgs
+auth_rules_claims.admin_org_ids    -- orgs where user is admin
+auth_rules_claims.owner_org_ids    -- orgs where user is owner
 ```
 
 Every new role means a new claim. Doesn't scale.
@@ -30,41 +30,41 @@ Every new role means a new claim. Doesn't scale.
 **Claims view includes role:**
 
 ```sql
-CREATE VIEW claims.org_roles AS
+CREATE VIEW auth_rules_claims.org_roles AS
 SELECT user_id, org_id, role
 FROM public.org_members;
 ```
 
-**Rule uses auth.check():**
+**Rule uses auth_rules.check():**
 
 ```sql
-SELECT auth.rule('org_billing',
-  auth.select('id', 'org_id', 'plan', 'amount'),
-  auth.in('org_id', 'org_ids', auth.check('org_roles', 'role', ARRAY['admin', 'owner']))
+SELECT auth_rules.rule('org_billing',
+  auth_rules.select('id', 'org_id', 'plan', 'amount'),
+  auth_rules.in('org_id', 'org_ids', auth_rules.check('org_roles', 'role', ARRAY['admin', 'owner']))
 );
 ```
 
 **Generated view:**
 
 ```sql
-CREATE VIEW api.org_billing AS
+CREATE VIEW data_api.org_billing AS
 SELECT id, org_id, plan, amount
 FROM public.org_billing
 WHERE org_id IN (
-  SELECT org_id FROM claims.org_roles
+  SELECT org_id FROM auth_rules_claims.org_roles
   WHERE user_id = auth.uid()
     AND role IN ('admin', 'owner')
 );
 ```
 
-The `auth.check()` adds conditions to the claims subquery.
+The `auth_rules.check()` adds conditions to the claims subquery.
 
 ---
 
 ## Syntax
 
 ```sql
-auth.check('claim_name', 'property', ARRAY['allowed', 'values'])
+auth_rules.check('claim_name', 'property', ARRAY['allowed', 'values'])
 ```
 
 | Argument       | Description                                  |
@@ -87,7 +87,7 @@ auth.check('claim_name', 'property', ARRAY['allowed', 'values'])
 **Rule requires admin/owner:**
 
 ```sql
-auth.check('org_roles', 'role', ARRAY['admin', 'owner'])
+auth_rules.check('org_roles', 'role', ARRAY['admin', 'owner'])
 ```
 
 **Result:**
@@ -107,7 +107,7 @@ Only pro/enterprise orgs can access analytics.
 **Claims view:**
 
 ```sql
-CREATE VIEW claims.org_plans AS
+CREATE VIEW auth_rules_claims.org_plans AS
 SELECT om.user_id, o.id AS org_id, o.plan
 FROM public.org_members om
 JOIN public.organizations o ON o.id = om.org_id;
@@ -116,9 +116,9 @@ JOIN public.organizations o ON o.id = om.org_id;
 **Rule:**
 
 ```sql
-SELECT auth.rule('analytics',
-  auth.select('id', 'org_id', 'data'),
-  auth.in('org_id', 'org_ids', auth.check('org_plans', 'plan', ARRAY['pro', 'enterprise']))
+SELECT auth_rules.rule('analytics',
+  auth_rules.select('id', 'org_id', 'data'),
+  auth_rules.in('org_id', 'org_ids', auth_rules.check('org_plans', 'plan', ARRAY['pro', 'enterprise']))
 );
 ```
 
@@ -129,7 +129,7 @@ Only deploy approved projects.
 **Claims view:**
 
 ```sql
-CREATE VIEW claims.project_status AS
+CREATE VIEW auth_rules_claims.project_status AS
 SELECT pm.user_id, p.id AS project_id, p.status
 FROM public.project_members pm
 JOIN public.projects p ON p.id = pm.project_id;
@@ -138,9 +138,9 @@ JOIN public.projects p ON p.id = pm.project_id;
 **Rule:**
 
 ```sql
-SELECT auth.rule('deployments',
-  auth.insert(),
-  auth.in('project_id', 'project_ids', auth.check('project_status', 'status', ARRAY['approved']))
+SELECT auth_rules.rule('deployments',
+  auth_rules.insert(),
+  auth_rules.in('project_id', 'project_ids', auth_rules.check('project_status', 'status', ARRAY['approved']))
 );
 ```
 
@@ -151,7 +151,7 @@ Access based on clearance level.
 **Claims view:**
 
 ```sql
-CREATE VIEW claims.doc_access AS
+CREATE VIEW auth_rules_claims.doc_access AS
 SELECT user_id, document_id, clearance
 FROM public.document_permissions;
 ```
@@ -159,9 +159,9 @@ FROM public.document_permissions;
 **Rule:**
 
 ```sql
-SELECT auth.rule('documents',
-  auth.select('id', 'title', 'content'),
-  auth.in('id', 'doc_ids', auth.check('doc_access', 'clearance', ARRAY['public', 'internal']))
+SELECT auth_rules.rule('documents',
+  auth_rules.select('id', 'title', 'content'),
+  auth_rules.in('id', 'doc_ids', auth_rules.check('doc_access', 'clearance', ARRAY['public', 'internal']))
 );
 ```
 
@@ -174,7 +174,7 @@ Check multiple conditions in the same claim:
 **Claims view:**
 
 ```sql
-CREATE VIEW claims.org_membership AS
+CREATE VIEW auth_rules_claims.org_membership AS
 SELECT user_id, org_id, role, status
 FROM public.org_members;
 ```
@@ -182,11 +182,11 @@ FROM public.org_members;
 **Rule with multiple checks:**
 
 ```sql
-SELECT auth.rule('org_billing',
-  auth.select('id', 'org_id', 'plan'),
-  auth.in('org_id', 'org_ids',
-    auth.check('org_membership', 'role', ARRAY['admin', 'owner']),
-    auth.check('org_membership', 'status', ARRAY['active'])
+SELECT auth_rules.rule('org_billing',
+  auth_rules.select('id', 'org_id', 'plan'),
+  auth_rules.in('org_id', 'org_ids',
+    auth_rules.check('org_membership', 'role', ARRAY['admin', 'owner']),
+    auth_rules.check('org_membership', 'status', ARRAY['active'])
   )
 );
 ```
@@ -195,7 +195,7 @@ SELECT auth.rule('org_billing',
 
 ```sql
 WHERE org_id IN (
-  SELECT org_id FROM claims.org_membership
+  SELECT org_id FROM auth_rules_claims.org_membership
   WHERE user_id = auth.uid()
     AND role IN ('admin', 'owner')
     AND status IN ('active')

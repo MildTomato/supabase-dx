@@ -11,16 +11,16 @@ Simple patterns for common authorization scenarios.
 **Rule:**
 
 ```sql
-SELECT auth.rule('profiles',
-  auth.select('id', 'user_id', 'bio', 'avatar_url'),
-  auth.eq('user_id', auth.user_id())
+SELECT auth_rules.rule('profiles',
+  auth_rules.select('id', 'user_id', 'bio', 'avatar_url'),
+  auth_rules.eq('user_id', auth_rules.user_id())
 );
 ```
 
 **Generated view:**
 
 ```sql
-CREATE VIEW api.profiles AS
+CREATE VIEW data_api.profiles AS
 SELECT id, user_id, bio, avatar_url
 FROM public.profiles
 WHERE user_id = auth.uid();
@@ -43,7 +43,7 @@ Returns only the authenticated user's profile.
 **Claims view (system provides):**
 
 ```sql
-CREATE VIEW claims.org_ids AS
+CREATE VIEW auth_rules_claims.org_ids AS
 SELECT user_id, org_id
 FROM public.org_members;
 ```
@@ -51,20 +51,20 @@ FROM public.org_members;
 **Rule:**
 
 ```sql
-SELECT auth.rule('documents',
-  auth.select('id', 'org_id', 'title', 'content'),
-  auth.eq('org_id', auth.one_of('org_ids'))
+SELECT auth_rules.rule('documents',
+  auth_rules.select('id', 'org_id', 'title', 'content'),
+  auth_rules.eq('org_id', auth_rules.one_of('org_ids'))
 );
 ```
 
 **Generated view:**
 
 ```sql
-CREATE VIEW api.documents AS
+CREATE VIEW data_api.documents AS
 SELECT id, org_id, title, content
 FROM public.documents
 WHERE org_id IN (
-  SELECT org_id FROM claims.org_ids WHERE user_id = auth.uid()
+  SELECT org_id FROM auth_rules_claims.org_ids WHERE user_id = auth.uid()
 );
 ```
 
@@ -86,7 +86,7 @@ First returns all documents from all user's orgs. Second returns documents from 
 **Claims view:**
 
 ```sql
-CREATE VIEW claims.team_ids AS
+CREATE VIEW auth_rules_claims.team_ids AS
 SELECT user_id, team_id
 FROM public.team_members;
 ```
@@ -94,20 +94,20 @@ FROM public.team_members;
 **Rule:**
 
 ```sql
-SELECT auth.rule('projects',
-  auth.select('id', 'team_id', 'name', 'status'),
-  auth.eq('team_id', auth.one_of('team_ids'))
+SELECT auth_rules.rule('projects',
+  auth_rules.select('id', 'team_id', 'name', 'status'),
+  auth_rules.eq('team_id', auth_rules.one_of('team_ids'))
 );
 ```
 
 **Generated view:**
 
 ```sql
-CREATE VIEW api.projects AS
+CREATE VIEW data_api.projects AS
 SELECT id, team_id, name, status
 FROM public.projects
 WHERE team_id IN (
-  SELECT team_id FROM claims.team_ids WHERE user_id = auth.uid()
+  SELECT team_id FROM auth_rules_claims.team_ids WHERE user_id = auth.uid()
 );
 ```
 
@@ -120,17 +120,17 @@ WHERE team_id IN (
 **Rule:**
 
 ```sql
-SELECT auth.rule('documents',
-  auth.insert(),
-  auth.eq('org_id', auth.one_of('org_ids')),
-  auth.eq('created_by', auth.user_id())
+SELECT auth_rules.rule('documents',
+  auth_rules.insert(),
+  auth_rules.eq('org_id', auth_rules.one_of('org_ids')),
+  auth_rules.eq('created_by', auth_rules.user_id())
 );
 ```
 
 **Generated trigger on view:**
 
 ```sql
-CREATE FUNCTION api.documents_insert_trigger()
+CREATE FUNCTION data_api.documents_insert_trigger()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -138,7 +138,7 @@ AS $$
 BEGIN
   -- Validate org_id
   IF NOT EXISTS (
-    SELECT 1 FROM claims.org_ids
+    SELECT 1 FROM auth_rules_claims.org_ids
     WHERE user_id = auth.uid() AND org_id = NEW.org_id
   ) THEN
     RAISE EXCEPTION 'Not a member of this organization'
@@ -159,8 +159,8 @@ END;
 $$;
 
 CREATE TRIGGER documents_insert
-INSTEAD OF INSERT ON api.documents
-FOR EACH ROW EXECUTE FUNCTION api.documents_insert_trigger();
+INSTEAD OF INSERT ON data_api.documents
+FOR EACH ROW EXECUTE FUNCTION data_api.documents_insert_trigger();
 ```
 
 **Client usage:**
@@ -179,10 +179,10 @@ POST /documents
 **Rule:**
 
 ```sql
-SELECT auth.rule('documents',
-  auth.update(),
-  auth.eq('org_id', auth.one_of('org_ids')),
-  auth.eq('created_by', auth.user_id())
+SELECT auth_rules.rule('documents',
+  auth_rules.update(),
+  auth_rules.eq('org_id', auth_rules.one_of('org_ids')),
+  auth_rules.eq('created_by', auth_rules.user_id())
 );
 ```
 
@@ -204,16 +204,16 @@ PATCH /documents?id=eq.doc-123
 **Rule:**
 
 ```sql
-SELECT auth.rule('documents',
-  auth.delete(),
-  auth.eq('created_by', auth.user_id())
+SELECT auth_rules.rule('documents',
+  auth_rules.delete(),
+  auth_rules.eq('created_by', auth_rules.user_id())
 );
 ```
 
 **Generated trigger:**
 
 ```sql
-CREATE FUNCTION api.documents_delete_trigger()
+CREATE FUNCTION data_api.documents_delete_trigger()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -248,11 +248,11 @@ DELETE /documents?id=eq.doc-123
 **Rule:**
 
 ```sql
-SELECT auth.rule('documents',
-  auth.select('id', 'org_id', 'title', 'is_public'),
-  auth.or(
-    auth.eq('is_public', true),
-    auth.eq('org_id', auth.one_of('org_ids'))
+SELECT auth_rules.rule('documents',
+  auth_rules.select('id', 'org_id', 'title', 'is_public'),
+  auth_rules.or(
+    auth_rules.eq('is_public', true),
+    auth_rules.eq('org_id', auth_rules.one_of('org_ids'))
   )
 );
 ```
@@ -260,11 +260,11 @@ SELECT auth.rule('documents',
 **Generated view:**
 
 ```sql
-CREATE VIEW api.documents AS
+CREATE VIEW data_api.documents AS
 SELECT id, org_id, title, is_public
 FROM public.documents
 WHERE is_public = TRUE
-   OR org_id IN (SELECT org_id FROM claims.org_ids WHERE user_id = auth.uid());
+   OR org_id IN (SELECT org_id FROM auth_rules_claims.org_ids WHERE user_id = auth.uid());
 ```
 
 Unauthenticated users see only public documents.
@@ -273,13 +273,13 @@ Unauthenticated users see only public documents.
 
 ## Quick Reference
 
-| Scenario         | Rule                                            |
-| ---------------- | ----------------------------------------------- |
-| User's own data  | `auth.eq('user_id', auth.user_id())`            |
-| Org membership   | `auth.eq('org_id', auth.one_of('org_ids'))`     |
-| Team membership  | `auth.eq('team_id', auth.one_of('team_ids'))`   |
-| Role-based       | `auth.in('org_id', 'org_ids', auth.check(...))` |
-| Public + private | `auth.or(auth.eq('is_public', true), ...)`      |
+| Scenario         | Rule                                                          |
+| ---------------- | ------------------------------------------------------------- |
+| User's own data  | `auth_rules.eq('user_id', auth_rules.user_id())`              |
+| Org membership   | `auth_rules.eq('org_id', auth_rules.one_of('org_ids'))`       |
+| Team membership  | `auth_rules.eq('team_id', auth_rules.one_of('team_ids'))`     |
+| Role-based       | `auth_rules.in('org_id', 'org_ids', auth_rules.check(...))` |
+| Public + private | `auth_rules.or(auth_rules.eq('is_public', true), ...)`        |
 
 ---
 

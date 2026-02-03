@@ -24,16 +24,19 @@ You don't need to create these - they exist in every Supabase project.
 -- SCHEMA CREATION
 -- =============================================================================
 
--- API schema: Generated views that wrap public tables with auth
-CREATE SCHEMA IF NOT EXISTS api;
+-- Auth rules system schema
+CREATE SCHEMA IF NOT EXISTS auth_rules;
 
 -- Claims schema: Views that expose user relationships
-CREATE SCHEMA IF NOT EXISTS claims;
+CREATE SCHEMA IF NOT EXISTS auth_rules_claims;
+
+-- Data API schema: Generated views that wrap public tables with auth
+CREATE SCHEMA IF NOT EXISTS data_api;
 
 -- Grant usage to authenticated users
-GRANT USAGE ON SCHEMA api TO authenticated;
-GRANT USAGE ON SCHEMA claims TO authenticated;
-GRANT USAGE ON SCHEMA public TO authenticated;
+GRANT USAGE ON SCHEMA auth_rules TO authenticated, service_role;
+GRANT USAGE ON SCHEMA auth_rules_claims TO anon, authenticated, service_role;
+GRANT USAGE ON SCHEMA data_api TO anon, authenticated, service_role;
 ```
 
 ---
@@ -48,22 +51,22 @@ Claims are **views** that expose user relationships. They query source tables in
 -- =============================================================================
 
 -- Example: Organization membership
-CREATE VIEW claims.org_ids AS
+CREATE VIEW auth_rules_claims.org_ids AS
 SELECT user_id, org_id
 FROM public.org_members;
 
 -- Example: Organization roles (for checkClaim)
-CREATE VIEW claims.org_roles AS
+CREATE VIEW auth_rules_claims.org_roles AS
 SELECT user_id, org_id, role
 FROM public.org_members;
 
 -- Example: Team membership
-CREATE VIEW claims.team_ids AS
+CREATE VIEW auth_rules_claims.team_ids AS
 SELECT user_id, team_id
 FROM public.team_members;
 
 -- Example: Hierarchical teams (recursive)
-CREATE VIEW claims.accessible_team_ids AS
+CREATE VIEW auth_rules_claims.accessible_team_ids AS
 WITH RECURSIVE team_tree AS (
   -- Direct membership
   SELECT user_id, team_id
@@ -79,7 +82,7 @@ WITH RECURSIVE team_tree AS (
 SELECT DISTINCT user_id, team_id FROM team_tree;
 
 -- Grant SELECT on claims views to authenticated
-GRANT SELECT ON ALL TABLES IN SCHEMA claims TO authenticated;
+GRANT SELECT ON ALL TABLES IN SCHEMA auth_rules_claims TO authenticated;
 ```
 
 Claims views are **live**. When user is added to an org, they immediately have access. No cache invalidation needed.
@@ -96,7 +99,7 @@ Functions used by customers to define rules.
 -- =============================================================================
 
 -- Returns current user ID (wrapper around auth.uid())
-CREATE OR REPLACE FUNCTION auth.user_id()
+CREATE OR REPLACE FUNCTION auth_rules.user_id()
 RETURNS UUID
 LANGUAGE sql
 STABLE
@@ -105,7 +108,7 @@ AS $$
 $$;
 
 -- Placeholder for one_of (used in rule definitions, interpreted by view generator)
-CREATE OR REPLACE FUNCTION auth.one_of(claim_name TEXT)
+CREATE OR REPLACE FUNCTION auth_rules.one_of(claim_name TEXT)
 RETURNS UUID[]
 LANGUAGE sql
 STABLE
@@ -113,10 +116,10 @@ AS $$
   SELECT NULL::UUID[]
 $$;
 
-COMMENT ON FUNCTION auth.one_of IS 'Used in rule definitions. Returns IDs from the named claims view.';
+COMMENT ON FUNCTION auth_rules.one_of IS 'Used in rule definitions. Returns IDs from the named claims view.';
 
 -- Placeholder for check (used in rule definitions, interpreted by view generator)
-CREATE OR REPLACE FUNCTION auth.check(
+CREATE OR REPLACE FUNCTION auth_rules.check(
   claim_name TEXT,
   property TEXT,
   allowed_values TEXT[]
@@ -128,7 +131,7 @@ AS $$
   SELECT TRUE
 $$;
 
-COMMENT ON FUNCTION auth.check IS 'Used in rule definitions. Adds conditions to the claims subquery.';
+COMMENT ON FUNCTION auth_rules.check IS 'Used in rule definitions. Adds conditions to the claims subquery.';
 ```
 
 ---
@@ -142,24 +145,24 @@ The system generates views from rules. Here's what gets generated.
 **Rule:**
 
 ```sql
-SELECT auth.rule('documents',
-  auth.select('id', 'org_id', 'title'),
-  auth.eq('org_id', auth.one_of('org_ids'))
+SELECT auth_rules.rule('documents',
+  auth_rules.select('id', 'org_id', 'title'),
+  auth_rules.eq('org_id', auth_rules.one_of('org_ids'))
 );
 ```
 
 **Generated view:**
 
 ```sql
-CREATE OR REPLACE VIEW api.documents AS
+CREATE OR REPLACE VIEW data_api.documents AS
 SELECT id, org_id, title
 FROM public.documents
 WHERE org_id IN (
-  SELECT org_id FROM claims.org_ids
+  SELECT org_id FROM auth_rules_claims.org_ids
   WHERE user_id = auth.uid()
 );
 
-GRANT SELECT ON api.documents TO authenticated;
+GRANT SELECT ON data_api.documents TO authenticated;
 ```
 
 ### INSERT Trigger
@@ -167,17 +170,17 @@ GRANT SELECT ON api.documents TO authenticated;
 **Rule:**
 
 ```sql
-SELECT auth.rule('documents',
-  auth.insert(),
-  auth.eq('org_id', auth.one_of('org_ids')),
-  auth.eq('created_by', auth.user_id())
+SELECT auth_rules.rule('documents',
+  auth_rules.insert(),
+  auth_rules.eq('org_id', auth_rules.one_of('org_ids')),
+  auth_rules.eq('created_by', auth_rules.user_id())
 );
 ```
 
 **Generated trigger:**
 
 ```sql
-CREATE OR REPLACE FUNCTION api.documents_insert_trigger()
+CREATE OR REPLACE FUNCTION data_api.documents_insert_trigger()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -186,7 +189,7 @@ AS $$
 BEGIN
   -- Validate org_id
   IF NOT EXISTS (
-    SELECT 1 FROM claims.org_ids
+    SELECT 1 FROM auth_rules_claims.org_ids
     WHERE user_id = auth.uid() AND org_id = NEW.org_id
   ) THEN
     RAISE EXCEPTION 'Not a member of this organization'
@@ -208,10 +211,10 @@ END;
 $$;
 
 CREATE TRIGGER documents_insert
-INSTEAD OF INSERT ON api.documents
-FOR EACH ROW EXECUTE FUNCTION api.documents_insert_trigger();
+INSTEAD OF INSERT ON data_api.documents
+FOR EACH ROW EXECUTE FUNCTION data_api.documents_insert_trigger();
 
-GRANT INSERT ON api.documents TO authenticated;
+GRANT INSERT ON data_api.documents TO authenticated;
 ```
 
 ### UPDATE Trigger
@@ -219,17 +222,17 @@ GRANT INSERT ON api.documents TO authenticated;
 **Rule:**
 
 ```sql
-SELECT auth.rule('documents',
-  auth.update(),
-  auth.eq('org_id', auth.one_of('org_ids')),
-  auth.eq('created_by', auth.user_id())
+SELECT auth_rules.rule('documents',
+  auth_rules.update(),
+  auth_rules.eq('org_id', auth_rules.one_of('org_ids')),
+  auth_rules.eq('created_by', auth_rules.user_id())
 );
 ```
 
 **Generated trigger:**
 
 ```sql
-CREATE OR REPLACE FUNCTION api.documents_update_trigger()
+CREATE OR REPLACE FUNCTION data_api.documents_update_trigger()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -241,7 +244,7 @@ BEGIN
   UPDATE public.documents
   SET title = NEW.title, content = NEW.content
   WHERE id = OLD.id
-    AND org_id IN (SELECT org_id FROM claims.org_ids WHERE user_id = auth.uid())
+    AND org_id IN (SELECT org_id FROM auth_rules_claims.org_ids WHERE user_id = auth.uid())
     AND created_by = auth.uid();
 
   GET DIAGNOSTICS v_count = ROW_COUNT;
@@ -256,10 +259,10 @@ END;
 $$;
 
 CREATE TRIGGER documents_update
-INSTEAD OF UPDATE ON api.documents
-FOR EACH ROW EXECUTE FUNCTION api.documents_update_trigger();
+INSTEAD OF UPDATE ON data_api.documents
+FOR EACH ROW EXECUTE FUNCTION data_api.documents_update_trigger();
 
-GRANT UPDATE ON api.documents TO authenticated;
+GRANT UPDATE ON data_api.documents TO authenticated;
 ```
 
 ### DELETE Trigger
@@ -267,16 +270,16 @@ GRANT UPDATE ON api.documents TO authenticated;
 **Rule:**
 
 ```sql
-SELECT auth.rule('documents',
-  auth.delete(),
-  auth.eq('created_by', auth.user_id())
+SELECT auth_rules.rule('documents',
+  auth_rules.delete(),
+  auth_rules.eq('created_by', auth_rules.user_id())
 );
 ```
 
 **Generated trigger:**
 
 ```sql
-CREATE OR REPLACE FUNCTION api.documents_delete_trigger()
+CREATE OR REPLACE FUNCTION data_api.documents_delete_trigger()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -297,10 +300,10 @@ END;
 $$;
 
 CREATE TRIGGER documents_delete
-INSTEAD OF DELETE ON api.documents
-FOR EACH ROW EXECUTE FUNCTION api.documents_delete_trigger();
+INSTEAD OF DELETE ON data_api.documents
+FOR EACH ROW EXECUTE FUNCTION data_api.documents_delete_trigger();
 
-GRANT DELETE ON api.documents TO authenticated;
+GRANT DELETE ON data_api.documents TO authenticated;
 ```
 
 ---
@@ -348,16 +351,16 @@ CREATE INDEX idx_documents_org ON public.documents(org_id);
 -- CLAIMS VIEWS
 -- =============================================================================
 
-CREATE VIEW claims.org_ids AS
+CREATE VIEW auth_rules_claims.org_ids AS
 SELECT user_id, org_id
 FROM public.org_members;
 
-CREATE VIEW claims.org_roles AS
+CREATE VIEW auth_rules_claims.org_roles AS
 SELECT user_id, org_id, role
 FROM public.org_members;
 
-GRANT SELECT ON claims.org_ids TO authenticated;
-GRANT SELECT ON claims.org_roles TO authenticated;
+GRANT SELECT ON auth_rules_claims.org_ids TO authenticated;
+GRANT SELECT ON auth_rules_claims.org_roles TO authenticated;
 
 
 -- =============================================================================
@@ -365,25 +368,25 @@ GRANT SELECT ON claims.org_roles TO authenticated;
 -- =============================================================================
 
 -- Organizations: members can view
-CREATE OR REPLACE VIEW api.organizations AS
+CREATE OR REPLACE VIEW data_api.organizations AS
 SELECT id, name, created_at
 FROM public.organizations
 WHERE id IN (
-  SELECT org_id FROM claims.org_ids
+  SELECT org_id FROM auth_rules_claims.org_ids
   WHERE user_id = auth.uid()
 );
 
-GRANT SELECT ON api.organizations TO authenticated;
+GRANT SELECT ON data_api.organizations TO authenticated;
 
 
 -- Documents: public OR org member
-CREATE OR REPLACE VIEW api.documents AS
+CREATE OR REPLACE VIEW data_api.documents AS
 SELECT id, org_id, title, is_public, created_by, created_at
 FROM public.documents
 WHERE is_public = TRUE
-   OR org_id IN (SELECT org_id FROM claims.org_ids WHERE user_id = auth.uid());
+   OR org_id IN (SELECT org_id FROM auth_rules_claims.org_ids WHERE user_id = auth.uid());
 
-GRANT SELECT ON api.documents TO authenticated;
+GRANT SELECT ON data_api.documents TO authenticated;
 
 
 -- =============================================================================
@@ -391,7 +394,7 @@ GRANT SELECT ON api.documents TO authenticated;
 -- =============================================================================
 
 -- Insert documents
-CREATE OR REPLACE FUNCTION api.documents_insert_trigger()
+CREATE OR REPLACE FUNCTION data_api.documents_insert_trigger()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -399,7 +402,7 @@ SET search_path = public, claims, auth
 AS $$
 BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM claims.org_ids
+    SELECT 1 FROM auth_rules_claims.org_ids
     WHERE user_id = auth.uid() AND org_id = NEW.org_id
   ) THEN
     RAISE EXCEPTION 'Not a member of this organization'
@@ -420,14 +423,14 @@ END;
 $$;
 
 CREATE TRIGGER documents_insert
-INSTEAD OF INSERT ON api.documents
-FOR EACH ROW EXECUTE FUNCTION api.documents_insert_trigger();
+INSTEAD OF INSERT ON data_api.documents
+FOR EACH ROW EXECUTE FUNCTION data_api.documents_insert_trigger();
 
-GRANT INSERT ON api.documents TO authenticated;
+GRANT INSERT ON data_api.documents TO authenticated;
 
 
 -- Update documents (only creator)
-CREATE OR REPLACE FUNCTION api.documents_update_trigger()
+CREATE OR REPLACE FUNCTION data_api.documents_update_trigger()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -453,14 +456,14 @@ END;
 $$;
 
 CREATE TRIGGER documents_update
-INSTEAD OF UPDATE ON api.documents
-FOR EACH ROW EXECUTE FUNCTION api.documents_update_trigger();
+INSTEAD OF UPDATE ON data_api.documents
+FOR EACH ROW EXECUTE FUNCTION data_api.documents_update_trigger();
 
-GRANT UPDATE ON api.documents TO authenticated;
+GRANT UPDATE ON data_api.documents TO authenticated;
 
 
 -- Delete documents (only creator)
-CREATE OR REPLACE FUNCTION api.documents_delete_trigger()
+CREATE OR REPLACE FUNCTION data_api.documents_delete_trigger()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -481,10 +484,10 @@ END;
 $$;
 
 CREATE TRIGGER documents_delete
-INSTEAD OF DELETE ON api.documents
-FOR EACH ROW EXECUTE FUNCTION api.documents_delete_trigger();
+INSTEAD OF DELETE ON data_api.documents
+FOR EACH ROW EXECUTE FUNCTION data_api.documents_delete_trigger();
 
-GRANT DELETE ON api.documents TO authenticated;
+GRANT DELETE ON data_api.documents TO authenticated;
 ```
 
 ---
@@ -510,7 +513,7 @@ db-anon-role = "anon"
 jwt-role-claim-key = ".role"
 ```
 
-**Key point**: `db-schemas = "api, public"` means PostgREST searches `api` first. If `api.documents` exists, it uses that. Otherwise falls through to `public.documents`.
+**Key point**: `db-schemas = "api, public"` means PostgREST searches `api` first. If `data_api.documents` exists, it uses that. Otherwise falls through to `public.documents`.
 
 ---
 
@@ -578,21 +581,21 @@ INSERT INTO public.documents (org_id, title, created_by) VALUES
 
 -- As user A (member of both orgs)
 SELECT test.set_user('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
-SELECT * FROM api.documents;  -- Should see both docs
-SELECT * FROM api.organizations;  -- Should see both orgs
+SELECT * FROM data_api.documents;  -- Should see both docs
+SELECT * FROM data_api.organizations;  -- Should see both orgs
 
 -- As user B (viewer in org one only)
 SELECT test.set_user('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
-SELECT * FROM api.documents;  -- Should see only Org One doc
-SELECT * FROM api.organizations;  -- Should see only Org One
+SELECT * FROM data_api.documents;  -- Should see only Org One doc
+SELECT * FROM data_api.organizations;  -- Should see only Org One
 
 -- Test write operations
 SELECT test.set_user('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
-INSERT INTO api.documents (org_id, title, created_by)
+INSERT INTO data_api.documents (org_id, title, created_by)
 VALUES ('11111111-1111-1111-1111-111111111111', 'New Doc', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
 
 -- This should fail (wrong org)
-INSERT INTO api.documents (org_id, title, created_by)
+INSERT INTO data_api.documents (org_id, title, created_by)
 VALUES ('33333333-3333-3333-3333-333333333333', 'Bad Doc', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
 -- ERROR: Not a member of this organization
 ```
@@ -614,8 +617,8 @@ DROP SCHEMA IF EXISTS claims CASCADE;
 | Component             | Purpose                                            |
 | --------------------- | -------------------------------------------------- |
 | `auth.uid()`          | Get current user from JWT (Supabase built-in)      |
-| `claims.*`            | Views that expose user relationships               |
-| `api.*`               | Views that wrap `public.*` tables with auth        |
+| `auth_rules_claims.*`            | Views that expose user relationships               |
+| `data_api.*`               | Views that wrap `public.*` tables with auth        |
 | `INSTEAD OF` triggers | Handle INSERT/UPDATE/DELETE on views               |
 | PostgREST config      | `db-schemas = "api, public"` for schema precedence |
 
@@ -630,7 +633,7 @@ Client Request (GET /documents)
 PostgREST (db-schemas = "api, public")
       |
       v
-Finds api.documents (view) -- uses it
+Finds data_api.documents (view) -- uses it
       |
       v
 View queries public.documents
@@ -647,7 +650,7 @@ Client Request (POST /documents)
 PostgREST (db-schemas = "api, public")
       |
       v
-Finds api.documents (view)
+Finds data_api.documents (view)
       |
       v
 INSTEAD OF INSERT trigger fires

@@ -20,9 +20,9 @@ export const messages = createAuthRule((db, ctx) =>
 **Proposed SQL:**
 
 ```sql
-SELECT auth.rule('messages',
-  auth.select('id', 'content', 'user_id', 'created_at'),
-  auth.eq('user_id', auth.user_id())
+SELECT auth_rules.rule('messages',
+  auth_rules.select('id', 'content', 'user_id', 'created_at'),
+  auth_rules.eq('user_id', auth_rules.user_id())
 );
 ```
 
@@ -60,9 +60,9 @@ export const projects = createAuthRule((db, ctx) =>
 **Proposed SQL:**
 
 ```sql
-SELECT auth.rule('projects',
-  auth.select('id', 'name', 'org_id', 'created_at'),
-  auth.eq('org_id', auth.one_of('org_ids'))
+SELECT auth_rules.rule('projects',
+  auth_rules.select('id', 'name', 'org_id', 'created_at'),
+  auth_rules.eq('org_id', auth_rules.one_of('org_ids'))
 );
 ```
 
@@ -106,10 +106,10 @@ export const messages = createAuthRule((db, ctx) =>
 **Proposed SQL:**
 
 ```sql
-SELECT auth.rule('messages',
-  auth.select('id', 'content', 'org_id', 'user_id'),
-  auth.eq('org_id', auth.one_of('org_ids')),
-  auth.eq('user_id', auth.user_id())
+SELECT auth_rules.rule('messages',
+  auth_rules.select('id', 'content', 'org_id', 'user_id'),
+  auth_rules.eq('org_id', auth_rules.one_of('org_ids')),
+  auth_rules.eq('user_id', auth_rules.user_id())
 );
 ```
 
@@ -153,9 +153,9 @@ export const billing = createAuthRule((db, ctx) =>
 **Proposed SQL:**
 
 ```sql
-SELECT auth.rule('org_billing',
-  auth.select('id', 'org_id', 'plan', 'amount'),
-  auth.in('org_id', 'org_ids', auth.check('org_roles', 'role', ARRAY['admin', 'owner']))
+SELECT auth_rules.rule('org_billing',
+  auth_rules.select('id', 'org_id', 'plan', 'amount'),
+  auth_rules.in('org_id', 'org_ids', auth_rules.check('org_roles', 'role', ARRAY['admin', 'owner']))
 );
 ```
 
@@ -180,7 +180,7 @@ FOR SELECT USING (
 | Aspect          | DSL                                     | Proposed SQL                            | RLS                            |
 | --------------- | --------------------------------------- | --------------------------------------- | ------------------------------ |
 | Column security | Only specified columns exposed          | Only specified columns exposed          | All columns visible            |
-| Role check      | Explicit via checkClaim                 | Explicit via auth.check                 | Embedded in policy subquery    |
+| Role check      | Explicit via checkClaim                 | Explicit via auth_rules.check                 | Embedded in policy subquery    |
 | Error behavior  | 403 if user is member but wrong role    | 403 if user is member but wrong role    | Silent - just no rows returned |
 | Debugging       | Clear error: "role must be admin/owner" | Clear error: "role must be admin/owner" | Empty result - unclear why     |
 
@@ -199,10 +199,10 @@ export const messagesInsert = createAuthRule((db, ctx) =>
 **Proposed SQL:**
 
 ```sql
-SELECT auth.rule('messages',
-  auth.insert(),
-  auth.eq('user_id', auth.user_id()),
-  auth.eq('org_id', auth.one_of('org_ids'))
+SELECT auth_rules.rule('messages',
+  auth_rules.insert(),
+  auth_rules.eq('user_id', auth_rules.user_id()),
+  auth_rules.eq('org_id', auth_rules.one_of('org_ids'))
 );
 ```
 
@@ -240,10 +240,10 @@ export const messagesUpdate = createAuthRule((db, ctx) =>
 **Proposed SQL:**
 
 ```sql
-SELECT auth.rule('messages',
-  auth.update(),
-  auth.eq('user_id', auth.user_id()),
-  auth.eq('org_id', auth.one_of('org_ids'))
+SELECT auth_rules.rule('messages',
+  auth_rules.update(),
+  auth_rules.eq('user_id', auth_rules.user_id()),
+  auth_rules.eq('org_id', auth_rules.one_of('org_ids'))
 );
 ```
 
@@ -280,10 +280,10 @@ export const messagesDelete = createAuthRule((db, ctx) =>
 **Proposed SQL:**
 
 ```sql
-SELECT auth.rule('messages',
-  auth.delete(),
-  auth.eq('user_id', auth.user_id()),
-  auth.eq('org_id', auth.one_of('org_ids'))
+SELECT auth_rules.rule('messages',
+  auth_rules.delete(),
+  auth_rules.eq('user_id', auth_rules.user_id()),
+  auth_rules.eq('org_id', auth_rules.one_of('org_ids'))
 );
 ```
 

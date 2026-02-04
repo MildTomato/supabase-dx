@@ -192,7 +192,14 @@ export function getProfileOrAuto(
   }
 
   // Fall back to first profile
-  return getProfile(config);
+  const profile = getProfile(config);
+  if (profile) return profile;
+
+  // No profiles block: use project_id as default so push/pull work without a profile
+  if (getProjectId(config)) {
+    return { name: "default" };
+  }
+  return null;
 }
 
 /**

@@ -6,7 +6,7 @@ import {
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query'
-import type { FolderPage, Folder, File } from './types'
+import type { FolderPage, Folder, File, Share, SharePermission, ShareableUser, Comment } from './types'
 import { supabase } from './supabase'
 
 const PAGE_SIZE = 50
@@ -143,6 +143,23 @@ export function useFolderCount(folderId: string) {
   return useQuery(folderCountOptions(folderId))
 }
 
+export function useFolder(folderId: string | null) {
+  return useQuery({
+    queryKey: ['folder', folderId] as const,
+    queryFn: async (): Promise<Folder | null> => {
+      if (!folderId) return null
+      const { data, error } = await supabase
+        .from('folders')
+        .select('id, name, parent_id, owner_id')
+        .eq('id', folderId)
+        .single()
+      if (error) return null
+      return data
+    },
+    enabled: !!folderId,
+  })
+}
+
 // Mutation Hooks
 export function useCreateFolder() {
   const queryClient = useQueryClient()
@@ -270,6 +287,255 @@ export function useUpdateFileContent() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['folder-contents'] })
+    },
+  })
+}
+
+// Share Queries and Mutations
+
+async function fetchResourceShares(
+  resourceType: 'file' | 'folder',
+  resourceId: string
+): Promise<Share[]> {
+  console.log('[fetchResourceShares]', { resourceType, resourceId })
+  // Fetch shares
+  const { data: shares, error: sharesError } = await supabase
+    .from('shares')
+    .select('id, resource_type, resource_id, shared_with_user_id, permission, created_by')
+    .eq('resource_type', resourceType)
+    .eq('resource_id', resourceId)
+
+  console.log('[fetchResourceShares] result', { shares, sharesError })
+  if (sharesError) throw new Error(`Failed to fetch shares: ${sharesError.message}`)
+  if (!shares?.length) return []
+
+  // Get unique user IDs
+  const userIds = [...new Set(shares.map(s => s.shared_with_user_id).filter(Boolean))]
+
+  // Fetch user emails
+  const { data: users, error: usersError } = await supabase
+    .from('users')
+    .select('id, email')
+    .in('id', userIds)
+
+  if (usersError) throw new Error(`Failed to fetch users: ${usersError.message}`)
+
+  const emailMap = new Map(users?.map(u => [u.id, u.email]) ?? [])
+
+  return shares.map((share) => ({
+    id: share.id,
+    resource_type: share.resource_type as 'file' | 'folder',
+    resource_id: share.resource_id,
+    shared_with_user_id: share.shared_with_user_id,
+    permission: share.permission as SharePermission,
+    created_by: share.created_by,
+    shared_with_email: share.shared_with_user_id ? emailMap.get(share.shared_with_user_id) : undefined,
+  }))
+}
+
+async function searchUsers(query: string): Promise<ShareableUser[]> {
+  if (!query.trim()) return []
+
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, email')
+    .ilike('email', `%${query}%`)
+    .limit(10)
+
+  if (error) throw error
+  return data ?? []
+}
+
+export const resourceSharesOptions = (resourceType: 'file' | 'folder', resourceId: string) =>
+  queryOptions({
+    queryKey: ['resource-shares', resourceType, resourceId] as const,
+    queryFn: () => fetchResourceShares(resourceType, resourceId),
+    enabled: !!resourceId,
+    retry: false,
+    throwOnError: false,
+  })
+
+export function useResourceShares(resourceType: 'file' | 'folder', resourceId: string) {
+  return useQuery(resourceSharesOptions(resourceType, resourceId))
+}
+
+// Get current user's permission level for a resource
+// Returns 'owner' | 'edit' | 'view' | null
+export function useMyPermission(
+  resourceType: 'file' | 'folder',
+  resourceId: string,
+  ownerId: string
+) {
+  return useQuery({
+    queryKey: ['my-permission', resourceType, resourceId] as const,
+    queryFn: async (): Promise<'owner' | 'edit' | 'comment' | 'view' | null> => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return null
+
+      // Check if owner
+      if (ownerId === user.id) return 'owner'
+
+      // Check shares for this user
+      const { data: share } = await supabase
+        .from('shares')
+        .select('permission')
+        .eq('resource_type', resourceType)
+        .eq('resource_id', resourceId)
+        .eq('shared_with_user_id', user.id)
+        .single()
+
+      if (share) return share.permission as 'edit' | 'comment' | 'view'
+
+      // TODO: Check group shares and inherited folder permissions
+      return null
+    },
+    enabled: !!resourceId,
+    retry: false,
+    throwOnError: false,
+  })
+}
+
+export function useSearchUsers(query: string) {
+  return useQuery({
+    queryKey: ['search-users', query] as const,
+    queryFn: () => searchUsers(query),
+    enabled: query.trim().length > 0,
+    retry: false,
+    throwOnError: false,
+  })
+}
+
+export function useCreateShare() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationKey: ['create-share'],
+    mutationFn: async (data: {
+      resourceType: 'file' | 'folder'
+      resourceId: string
+      sharedWithUserId: string
+      permission: SharePermission
+    }) => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not authenticated')
+      const shareId = crypto.randomUUID()
+      console.log('[createShare] inserting', { shareId, ...data, created_by: user.id })
+      const { error } = await supabase.from('shares').insert({
+        id: shareId,
+        resource_type: data.resourceType,
+        resource_id: data.resourceId,
+        shared_with_user_id: data.sharedWithUserId,
+        permission: data.permission,
+        created_by: user.id,
+      })
+      console.log('[createShare] result', { error })
+      if (error) throw error
+    },
+    onSuccess: (_, variables) => {
+      console.log('[createShare] onSuccess, invalidating queries')
+      queryClient.invalidateQueries({
+        queryKey: ['resource-shares', variables.resourceType, variables.resourceId],
+      })
+      queryClient.invalidateQueries({ queryKey: ['folder-contents'] })
+    },
+  })
+}
+
+export function useRemoveShare() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationKey: ['remove-share'],
+    mutationFn: async (shareId: string) => {
+      const { error } = await supabase.from('shares').delete().eq('id', shareId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['resource-shares'] })
+      queryClient.invalidateQueries({ queryKey: ['folder-contents'] })
+    },
+  })
+}
+
+// =============================================================================
+// COMMENTS
+// =============================================================================
+
+async function fetchFileComments(fileId: string): Promise<Comment[]> {
+  const { data: comments, error: commentsError } = await supabase
+    .from('comments')
+    .select('id, file_id, user_id, content, created_at')
+    .eq('file_id', fileId)
+    .order('created_at', { ascending: true })
+
+  if (commentsError) throw new Error(`Failed to fetch comments: ${commentsError.message}`)
+  if (!comments?.length) return []
+
+  // Get unique user IDs
+  const userIds = [...new Set(comments.map(c => c.user_id))]
+
+  // Fetch user emails
+  const { data: users, error: usersError } = await supabase
+    .from('users')
+    .select('id, email')
+    .in('id', userIds)
+
+  if (usersError) throw new Error(`Failed to fetch users: ${usersError.message}`)
+
+  const emailMap = new Map(users?.map(u => [u.id, u.email]) ?? [])
+
+  return comments.map((comment) => ({
+    id: comment.id,
+    file_id: comment.file_id,
+    user_id: comment.user_id,
+    content: comment.content,
+    created_at: comment.created_at,
+    user_email: emailMap.get(comment.user_id),
+  }))
+}
+
+export const fileCommentsOptions = (fileId: string) =>
+  queryOptions({
+    queryKey: ['file-comments', fileId] as const,
+    queryFn: () => fetchFileComments(fileId),
+    enabled: !!fileId,
+    retry: false,
+    throwOnError: false,
+  })
+
+export function useFileComments(fileId: string) {
+  return useQuery(fileCommentsOptions(fileId))
+}
+
+export function useCreateComment() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationKey: ['create-comment'],
+    mutationFn: async (data: { fileId: string; content: string }) => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not authenticated')
+      const { error } = await supabase.from('comments').insert({
+        id: crypto.randomUUID(),
+        file_id: data.fileId,
+        user_id: user.id,
+        content: data.content,
+      })
+      if (error) throw error
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['file-comments', variables.fileId] })
+    },
+  })
+}
+
+export function useDeleteComment() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationKey: ['delete-comment'],
+    mutationFn: async (data: { commentId: string; fileId: string }) => {
+      const { error } = await supabase.from('comments').delete().eq('id', data.commentId)
+      if (error) throw error
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['file-comments', variables.fileId] })
     },
   })
 }

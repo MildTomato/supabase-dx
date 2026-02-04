@@ -3,6 +3,8 @@ export type Folder = {
   name: string
   parent_id: string | null
   owner_id: string
+  is_shared_by_me?: boolean
+  is_shared_with_me?: boolean
 }
 
 export type File = {
@@ -13,6 +15,8 @@ export type File = {
   owner_id: string
   size: number
   created_at: string
+  is_shared_by_me?: boolean
+  is_shared_with_me?: boolean
 }
 
 export type FolderPage = {
@@ -20,4 +24,31 @@ export type FolderPage = {
   files: File[]
   nextCursor: string | null
   prevCursor: string | null
+}
+
+// Share types
+export type SharePermission = 'view' | 'comment' | 'edit'
+
+export type Share = {
+  id: string
+  resource_type: 'file' | 'folder'
+  resource_id: string
+  shared_with_user_id: string | null
+  permission: SharePermission
+  created_by: string
+  shared_with_email?: string // joined from users table
+}
+
+export type ShareableUser = {
+  id: string
+  email: string
+}
+
+export type Comment = {
+  id: string
+  file_id: string
+  user_id: string
+  content: string
+  created_at: string
+  user_email?: string // joined from users table
 }

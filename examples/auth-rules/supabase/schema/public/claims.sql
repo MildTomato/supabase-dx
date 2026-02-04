@@ -37,17 +37,35 @@ SELECT auth_rules.claim('accessible_file_ids', $$
   FROM public.files
   JOIN public.folders ON files.folder_id = folders.id
   UNION
-  -- Files in folders shared with user
+  -- Files in folders shared with user (including all subfolders)
   SELECT shares.shared_with_user_id AS user_id, files.id
-  FROM public.files
-  JOIN public.shares ON shares.resource_id = files.folder_id
+  FROM public.shares
+  JOIN LATERAL (
+    WITH RECURSIVE folder_tree AS (
+      SELECT id FROM public.folders WHERE id = shares.resource_id
+      UNION ALL
+      SELECT f.id FROM public.folders f
+      JOIN folder_tree ft ON f.parent_id = ft.id
+    )
+    SELECT id FROM folder_tree
+  ) descendant_folders ON true
+  JOIN public.files ON files.folder_id = descendant_folders.id
   WHERE shares.resource_type = 'folder' AND shares.shared_with_user_id IS NOT NULL
   UNION
-  -- Files in folders shared with groups user is in
+  -- Files in folders shared with groups user is in (including all subfolders)
   SELECT group_members.user_id, files.id
-  FROM public.files
-  JOIN public.shares ON shares.resource_id = files.folder_id
+  FROM public.shares
   JOIN public.group_members ON group_members.group_id = shares.shared_with_group_id
+  JOIN LATERAL (
+    WITH RECURSIVE folder_tree AS (
+      SELECT id FROM public.folders WHERE id = shares.resource_id
+      UNION ALL
+      SELECT f.id FROM public.folders f
+      JOIN folder_tree ft ON f.parent_id = ft.id
+    )
+    SELECT id FROM folder_tree
+  ) descendant_folders ON true
+  JOIN public.files ON files.folder_id = descendant_folders.id
   WHERE shares.resource_type = 'folder'
   UNION
   -- Files accessible via link token
@@ -73,17 +91,35 @@ SELECT auth_rules.claim('editable_file_ids', $$
   JOIN public.group_members ON group_members.group_id = shares.shared_with_group_id
   WHERE shares.resource_type = 'file' AND shares.permission = 'edit'
   UNION
-  -- Files in folders shared with edit permission
+  -- Files in folders shared with edit permission (including all subfolders)
   SELECT shares.shared_with_user_id AS user_id, files.id
-  FROM public.files
-  JOIN public.shares ON shares.resource_id = files.folder_id
+  FROM public.shares
+  JOIN LATERAL (
+    WITH RECURSIVE folder_tree AS (
+      SELECT id FROM public.folders WHERE id = shares.resource_id
+      UNION ALL
+      SELECT f.id FROM public.folders f
+      JOIN folder_tree ft ON f.parent_id = ft.id
+    )
+    SELECT id FROM folder_tree
+  ) descendant_folders ON true
+  JOIN public.files ON files.folder_id = descendant_folders.id
   WHERE shares.resource_type = 'folder' AND shares.shared_with_user_id IS NOT NULL AND shares.permission = 'edit'
   UNION
-  -- Files in folders shared with groups with edit permission
+  -- Files in folders shared with groups with edit permission (including all subfolders)
   SELECT group_members.user_id, files.id
-  FROM public.files
-  JOIN public.shares ON shares.resource_id = files.folder_id
+  FROM public.shares
   JOIN public.group_members ON group_members.group_id = shares.shared_with_group_id
+  JOIN LATERAL (
+    WITH RECURSIVE folder_tree AS (
+      SELECT id FROM public.folders WHERE id = shares.resource_id
+      UNION ALL
+      SELECT f.id FROM public.folders f
+      JOIN folder_tree ft ON f.parent_id = ft.id
+    )
+    SELECT id FROM folder_tree
+  ) descendant_folders ON true
+  JOIN public.files ON files.folder_id = descendant_folders.id
   WHERE shares.resource_type = 'folder' AND shares.permission = 'edit'
   UNION
   -- Link shares with edit permission
@@ -100,15 +136,84 @@ SELECT auth_rules.claim('deletable_file_ids', $$
   SELECT owner_id AS user_id, id FROM public.files
 $$);
 
--- accessible_folder_ids: folders user can access
-SELECT auth_rules.claim('accessible_folder_ids', $$
-  SELECT owner_id AS user_id, id FROM public.folders
+-- commentable_file_ids: files user can comment on (comment or edit permission)
+SELECT auth_rules.claim('commentable_file_ids', $$
+  -- Files user owns
+  SELECT owner_id AS user_id, id FROM public.files
   UNION
+  -- Files shared with comment or edit permission
   SELECT shared_with_user_id AS user_id, resource_id AS id
-  FROM public.shares WHERE resource_type = 'folder' AND shared_with_user_id IS NOT NULL
+  FROM public.shares WHERE resource_type = 'file' AND shared_with_user_id IS NOT NULL AND permission IN ('comment', 'edit')
   UNION
+  -- Files shared with groups with comment or edit permission
   SELECT group_members.user_id, shares.resource_id AS id
   FROM public.shares
   JOIN public.group_members ON group_members.group_id = shares.shared_with_group_id
+  WHERE shares.resource_type = 'file' AND shares.permission IN ('comment', 'edit')
+  UNION
+  -- Files in folders shared with comment or edit permission (including all subfolders)
+  SELECT shares.shared_with_user_id AS user_id, files.id
+  FROM public.shares
+  JOIN LATERAL (
+    WITH RECURSIVE folder_tree AS (
+      SELECT id FROM public.folders WHERE id = shares.resource_id
+      UNION ALL
+      SELECT f.id FROM public.folders f
+      JOIN folder_tree ft ON f.parent_id = ft.id
+    )
+    SELECT id FROM folder_tree
+  ) descendant_folders ON true
+  JOIN public.files ON files.folder_id = descendant_folders.id
+  WHERE shares.resource_type = 'folder' AND shares.shared_with_user_id IS NOT NULL AND shares.permission IN ('comment', 'edit')
+  UNION
+  -- Files in folders shared with groups with comment or edit permission (including all subfolders)
+  SELECT group_members.user_id, files.id
+  FROM public.shares
+  JOIN public.group_members ON group_members.group_id = shares.shared_with_group_id
+  JOIN LATERAL (
+    WITH RECURSIVE folder_tree AS (
+      SELECT id FROM public.folders WHERE id = shares.resource_id
+      UNION ALL
+      SELECT f.id FROM public.folders f
+      JOIN folder_tree ft ON f.parent_id = ft.id
+    )
+    SELECT id FROM folder_tree
+  ) descendant_folders ON true
+  JOIN public.files ON files.folder_id = descendant_folders.id
+  WHERE shares.resource_type = 'folder' AND shares.permission IN ('comment', 'edit')
+$$);
+
+-- accessible_folder_ids: folders user can access (including subfolders of shared folders)
+SELECT auth_rules.claim('accessible_folder_ids', $$
+  -- Folders user owns
+  SELECT owner_id AS user_id, id FROM public.folders
+  UNION
+  -- Folders directly shared with user + all their subfolders
+  SELECT shared_with_user_id AS user_id, descendant.id
+  FROM public.shares
+  JOIN LATERAL (
+    WITH RECURSIVE folder_tree AS (
+      SELECT id, parent_id FROM public.folders WHERE id = shares.resource_id
+      UNION ALL
+      SELECT f.id, f.parent_id FROM public.folders f
+      JOIN folder_tree ft ON f.parent_id = ft.id
+    )
+    SELECT id FROM folder_tree
+  ) descendant ON true
+  WHERE shares.resource_type = 'folder' AND shares.shared_with_user_id IS NOT NULL
+  UNION
+  -- Folders shared with groups user is in + all their subfolders
+  SELECT group_members.user_id, descendant.id
+  FROM public.shares
+  JOIN public.group_members ON group_members.group_id = shares.shared_with_group_id
+  JOIN LATERAL (
+    WITH RECURSIVE folder_tree AS (
+      SELECT id, parent_id FROM public.folders WHERE id = shares.resource_id
+      UNION ALL
+      SELECT f.id, f.parent_id FROM public.folders f
+      JOIN folder_tree ft ON f.parent_id = ft.id
+    )
+    SELECT id FROM folder_tree
+  ) descendant ON true
   WHERE shares.resource_type = 'folder'
 $$);

@@ -60,7 +60,7 @@ CREATE TABLE public.shares (
   shared_with_user_id UUID,
   shared_with_group_id UUID,
   permission TEXT NOT NULL CHECK (permission IN ('view', 'comment', 'edit')),
-  created_by UUID NOT NULL,
+  created_by UUID NOT NULL DEFAULT auth.uid(),
   CHECK (shared_with_user_id IS NOT NULL OR shared_with_group_id IS NOT NULL)
 );
 
@@ -76,6 +76,15 @@ CREATE TABLE public.link_shares (
   created_by UUID NOT NULL
 );
 
+-- Comments on files
+CREATE TABLE public.comments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  file_id UUID NOT NULL REFERENCES public.files(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL,
+  content TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
 -- Audit logs
 CREATE TABLE public.audit_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -86,3 +95,7 @@ CREATE TABLE public.audit_logs (
   resource_id UUID,
   created_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- Users view (exposes auth.users for sharing)
+CREATE VIEW public.users WITH (security_invoker = false) AS
+SELECT id, email FROM auth.users;

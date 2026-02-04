@@ -29,13 +29,13 @@ SELECT auth_rules.rule('folders',
 -- Folders: UPDATE (owner only for now)
 SELECT auth_rules.rule('folders',
   auth_rules.update(),
-  auth_rules.eq('owner_id', auth_rules.user_id())
+  auth_rules.eq('owner_id', auth_rules.user_id_marker())
 );
 
 -- Folders: DELETE (owner only)
 SELECT auth_rules.rule('folders',
   auth_rules.delete(),
-  auth_rules.eq('owner_id', auth_rules.user_id())
+  auth_rules.eq('owner_id', auth_rules.user_id_marker())
 );
 
 -- Audit logs: only org admins can see
@@ -51,13 +51,13 @@ SELECT auth_rules.rule('audit_logs',
 -- Files: INSERT (any authenticated user can create files they own)
 SELECT auth_rules.rule('files',
   auth_rules.insert(),
-  auth_rules.eq('owner_id', auth_rules.user_id())
+  auth_rules.eq('owner_id', auth_rules.user_id_marker())
 );
 
 -- Folders: INSERT (any authenticated user can create folders they own)
 SELECT auth_rules.rule('folders',
   auth_rules.insert(),
-  auth_rules.eq('owner_id', auth_rules.user_id())
+  auth_rules.eq('owner_id', auth_rules.user_id_marker())
 );
 
 -- =============================================================================
@@ -68,21 +68,21 @@ SELECT auth_rules.rule('folders',
 SELECT auth_rules.rule('shares',
   auth_rules.select('id', 'resource_type', 'resource_id', 'shared_with_user_id', 'shared_with_group_id', 'permission', 'created_by'),
   auth_rules.or_(
-    auth_rules.eq('created_by', auth_rules.user_id()),
-    auth_rules.eq('shared_with_user_id', auth_rules.user_id())
+    auth_rules.eq('created_by', auth_rules.user_id_marker()),
+    auth_rules.eq('shared_with_user_id', auth_rules.user_id_marker())
   )
 );
 
 -- Shares: INSERT (can share files/folders you own)
 SELECT auth_rules.rule('shares',
   auth_rules.insert(),
-  auth_rules.eq('created_by', auth_rules.user_id())
+  auth_rules.eq('created_by', auth_rules.user_id_marker())
 );
 
 -- Shares: DELETE (can delete shares you created)
 SELECT auth_rules.rule('shares',
   auth_rules.delete(),
-  auth_rules.eq('created_by', auth_rules.user_id())
+  auth_rules.eq('created_by', auth_rules.user_id_marker())
 );
 
 -- =============================================================================
@@ -92,17 +92,51 @@ SELECT auth_rules.rule('shares',
 -- Link shares: SELECT (can see link shares you created)
 SELECT auth_rules.rule('link_shares',
   auth_rules.select('id', 'resource_type', 'resource_id', 'token', 'permission', 'expires_at', 'created_by'),
-  auth_rules.eq('created_by', auth_rules.user_id())
+  auth_rules.eq('created_by', auth_rules.user_id_marker())
 );
 
 -- Link shares: INSERT (can create link shares for resources you own)
 SELECT auth_rules.rule('link_shares',
   auth_rules.insert(),
-  auth_rules.eq('created_by', auth_rules.user_id())
+  auth_rules.eq('created_by', auth_rules.user_id_marker())
 );
 
 -- Link shares: DELETE (can delete link shares you created)
 SELECT auth_rules.rule('link_shares',
   auth_rules.delete(),
-  auth_rules.eq('created_by', auth_rules.user_id())
+  auth_rules.eq('created_by', auth_rules.user_id_marker())
+);
+
+-- =============================================================================
+-- COMMENTS TABLE
+-- =============================================================================
+
+-- Comments: SELECT (can see comments on files with comment or edit permission)
+SELECT auth_rules.rule('comments',
+  auth_rules.select('id', 'file_id', 'user_id', 'content', 'created_at'),
+  auth_rules.eq('file_id', auth_rules.one_of('commentable_file_ids'))
+);
+
+-- Comments: INSERT (can comment on files with comment or edit permission)
+SELECT auth_rules.rule('comments',
+  auth_rules.insert(),
+  auth_rules.and_(
+    auth_rules.eq('user_id', auth_rules.user_id_marker()),
+    auth_rules.eq('file_id', auth_rules.one_of('commentable_file_ids'))
+  )
+);
+
+-- Comments: DELETE (can delete your own comments)
+SELECT auth_rules.rule('comments',
+  auth_rules.delete(),
+  auth_rules.eq('user_id', auth_rules.user_id_marker())
+);
+
+-- =============================================================================
+-- USERS VIEW (for sharing search)
+-- =============================================================================
+
+-- Users: SELECT (all authenticated users can search users by email)
+SELECT auth_rules.rule('users',
+  auth_rules.select('id', 'email')
 );

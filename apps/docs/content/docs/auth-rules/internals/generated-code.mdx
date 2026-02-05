@@ -1,13 +1,14 @@
 ---
-title: Generated Code
+title: Generated code
 description: Examples of what Auth Rules generates
 ---
 
-This page shows examples of the SQL that Auth Rules generates from your rule definitions. Understanding this can help with debugging and optimization.
+This page shows examples of the SQL that Auth Rules generates from your rule
+definitions. Understanding this can help with debugging and optimization.
 
-## SELECT Rule
+## SELECT rule
 
-Your rule:
+Given this rule:
 
 ```sql title="rules.sql"
 SELECT auth_rules.rule('documents',
@@ -31,9 +32,9 @@ WHERE org_id IN (
 GRANT SELECT ON data_api.documents TO anon, authenticated;
 ```
 
-## INSERT Rule
+## INSERT rule
 
-Your rule:
+Given this rule:
 
 ```sql title="rules.sql"
 SELECT auth_rules.rule('documents',
@@ -76,9 +77,9 @@ FOR EACH ROW EXECUTE FUNCTION data_api.documents_insert_trigger();
 GRANT INSERT ON data_api.documents TO authenticated;
 ```
 
-## UPDATE Rule
+## UPDATE rule
 
-Your rule:
+Given this rule:
 
 ```sql title="rules.sql"
 SELECT auth_rules.rule('documents',
@@ -119,9 +120,9 @@ FOR EACH ROW EXECUTE FUNCTION data_api.documents_update_trigger();
 GRANT UPDATE ON data_api.documents TO authenticated;
 ```
 
-## DELETE Rule
+## DELETE rule
 
-Your rule:
+Given this rule:
 
 ```sql title="rules.sql"
 SELECT auth_rules.rule('documents',
@@ -157,9 +158,9 @@ FOR EACH ROW EXECUTE FUNCTION data_api.documents_delete_trigger();
 GRANT DELETE ON data_api.documents TO authenticated;
 ```
 
-## OR Conditions
+## OR conditions
 
-Your rule:
+Given this rule:
 
 ```sql title="rules.sql"
 SELECT auth_rules.rule('documents',
@@ -187,9 +188,9 @@ WHERE (
 );
 ```
 
-## Claims View
+## Claims view
 
-Your claim:
+Given this claim:
 
 ```sql title="claims.sql"
 SELECT auth_rules.claim('org_ids', $$

@@ -8,6 +8,8 @@
     "workflow-profiles",
     "schema-sync",
     "---Reference---",
-    "...reference"
+    "...reference",
+    "---Internal---",
+    "audit"
   ]
 }

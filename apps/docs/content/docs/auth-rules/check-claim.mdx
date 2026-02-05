@@ -1,11 +1,12 @@
 ---
-title: Role-Based Access
+title: Role-based access
 description: Control access based on user roles
 ---
 
-Sometimes membership isn't enough — you need to know the user's *role* within an organization. Auth Rules handles this with `check()`.
+Sometimes membership isn't enough — you need to know the user's *role* within
+an organization. Auth Rules handles this with `check()`.
 
-## The Problem
+## The problem
 
 Say you have org members with different roles:
 
@@ -19,7 +20,7 @@ CREATE TABLE org_members (
 
 All members can view documents, but only admins and owners should see billing. You could create separate claims for each role, but that doesn't scale well.
 
-## The Solution
+## The solution
 
 Create one claim that includes the role:
 
@@ -41,7 +42,7 @@ SELECT auth_rules.rule('billing',
 
 Users only see billing records for orgs where they're an admin or owner.
 
-## How check() Works
+## How check() works
 
 The `check()` function filters the claim by a property:
 
@@ -55,9 +56,9 @@ auth_rules.check('claim_name', 'property', ARRAY['allowed', 'values'])
 | `property` | Column name to filter on |
 | `allowed values` | Array of acceptable values |
 
-## Example: Role Hierarchy
+## Example: role hierarchy
 
-User has these memberships:
+Consider a user with these memberships:
 
 | org_id | role |
 |--------|------|
@@ -73,11 +74,13 @@ auth_rules.check('org_roles', 'role', ARRAY['admin', 'owner'])
 
 The user can access billing for `acme` and `initech`, but not `globex`.
 
-## Common Use Cases
+## Common use cases
+
+These patterns cover typical role-based scenarios.
 
 ### Subscription tiers
 
-Only pro and enterprise customers can access certain features:
+To restrict features to pro and enterprise customers:
 
 ```sql title="claims.sql"
 SELECT auth_rules.claim('org_plans', $$
@@ -97,7 +100,7 @@ SELECT auth_rules.rule('analytics',
 
 ### Approval workflows
 
-Only allow actions on approved projects:
+To only allow actions on approved projects:
 
 ```sql title="claims.sql"
 SELECT auth_rules.claim('project_status', $$
@@ -117,7 +120,7 @@ SELECT auth_rules.rule('deployments',
 
 ### Active memberships
 
-Only count active (not suspended) members:
+To only count active (not suspended) members:
 
 ```sql title="claims.sql"
 SELECT auth_rules.claim('org_membership', $$
@@ -133,9 +136,10 @@ SELECT auth_rules.rule('documents',
 );
 ```
 
-## Multiple Checks
+## Multiple checks
 
-You can combine multiple checks. For example, require both admin role AND active status:
+You can combine multiple checks. For example, to require both admin role AND
+active status:
 
 ```sql title="rules.sql"
 SELECT auth_rules.rule('billing',
@@ -147,15 +151,18 @@ SELECT auth_rules.rule('billing',
 );
 ```
 
-## Behavior Note
+## Behavior note
 
-With `check()`, rows that don't match are filtered out silently. If a user queries billing for an org where they're a viewer, they get an empty result (not an error).
+With `check()`, rows that don't match are filtered out silently. If a user
+queries billing for an org where they're a viewer, they get an empty result
+(not an error).
 
-This is the expected behavior for SELECT — you see what you have access to. For writes, you'll get explicit errors if access is denied.
+This is the expected behavior for SELECT — you see what you have access to.
+For writes, you get explicit errors if access is denied.
 
 ## Performance
 
-Index the columns you're checking:
+Index the columns you're checking for optimal query performance:
 
 ```sql title="indexes.sql"
 CREATE INDEX idx_org_members_user_role

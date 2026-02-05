@@ -1,7 +1,6 @@
 -- =============================================================================
 -- DROPBOX-STYLE TABLES
 -- =============================================================================
-
 -- Organizations
 CREATE TABLE public.organizations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -61,7 +60,10 @@ CREATE TABLE public.shares (
   shared_with_group_id UUID,
   permission TEXT NOT NULL CHECK (permission IN ('view', 'comment', 'edit')),
   created_by UUID NOT NULL DEFAULT auth.uid(),
-  CHECK (shared_with_user_id IS NOT NULL OR shared_with_group_id IS NOT NULL)
+  CHECK (
+    shared_with_user_id IS NOT NULL
+    OR shared_with_group_id IS NOT NULL
+  )
 );
 
 -- Link shares (public URLs)
@@ -98,4 +100,8 @@ CREATE TABLE public.audit_logs (
 
 -- Users view (exposes auth.users for sharing)
 CREATE VIEW public.users WITH (security_invoker = false) AS
-SELECT id, email FROM auth.users;
+SELECT
+  id,
+  email
+FROM
+  auth.users;

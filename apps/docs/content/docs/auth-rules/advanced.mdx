@@ -1,11 +1,12 @@
 ---
-title: Advanced Patterns
+title: Advanced patterns
 description: Complex authorization scenarios
 ---
 
-These patterns cover more sophisticated access control scenarios you might encounter in production applications.
+These patterns cover more sophisticated access control scenarios you might
+encounter in production applications.
 
-## Different Access by Role
+## Different access by role
 
 Users with different roles see different data within the same org:
 
@@ -44,9 +45,9 @@ SELECT auth_rules.rule('documents',
 );
 ```
 
-## Hierarchical Teams
+## Hierarchical teams
 
-Users in a parent team should access all child team resources:
+Users in a parent team can access all child team resources:
 
 ```
 Engineering (user is member)
@@ -79,9 +80,9 @@ SELECT auth_rules.rule('team_resources',
 );
 ```
 
-## Time-Limited Access
+## Time-limited access
 
-Course content only available during enrollment:
+Course content is only available during enrollment:
 
 ```sql title="claims.sql"
 SELECT auth_rules.claim('active_course_ids', $$
@@ -100,9 +101,9 @@ SELECT auth_rules.rule('course_content',
 
 When the enrollment expires, access stops automatically — no background jobs needed.
 
-## Cross-Tenant Sharing
+## Cross-tenant sharing
 
-Tenant A wants to share specific resources with Tenant B:
+When Tenant A wants to share specific resources with Tenant B:
 
 ```sql title="claims.sql"
 -- User's own tenants
@@ -130,9 +131,9 @@ SELECT auth_rules.rule('resources',
 );
 ```
 
-## Slack-Style Channels
+## Slack-style channels
 
-Workspaces with public and private channels:
+This pattern handles workspaces with public and private channels:
 
 ```sql title="claims.sql"
 -- Workspaces user belongs to
@@ -164,9 +165,10 @@ SELECT auth_rules.rule('channels',
 );
 ```
 
-## Dropbox-Style Folder Sharing
+## Dropbox-style folder sharing
 
-When you share a folder, users get access to all files and subfolders inside it:
+When you share a folder, users get access to all files and subfolders inside
+it:
 
 ```sql title="claims.sql"
 -- Folders user can access (owned + shared, including subfolders)
@@ -217,7 +219,9 @@ SELECT auth_rules.rule('files',
 );
 ```
 
-## Pattern Summary
+## Pattern summary
+
+Here's a quick reference for choosing the right approach:
 
 | Scenario | Approach |
 |----------|----------|

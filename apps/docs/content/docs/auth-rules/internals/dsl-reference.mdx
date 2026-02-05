@@ -1,11 +1,11 @@
 ---
-title: DSL Reference
+title: DSL reference
 description: Complete reference for Auth Rules functions
 ---
 
 This is the complete reference for all Auth Rules DSL functions.
 
-## Claim Functions
+## Claim functions
 
 ### auth_rules.claim()
 
@@ -48,7 +48,7 @@ Returns: `claim_name`, `sql`
 
 ---
 
-## Rule Functions
+## Rule functions
 
 ### auth_rules.rule()
 
@@ -92,7 +92,7 @@ Returns: `table_name`, `operation`, `columns`, `filters`
 
 ---
 
-## Operation Markers
+## Operation markers
 
 ### auth_rules.select()
 
@@ -134,7 +134,7 @@ auth_rules.delete()
 
 ---
 
-## Filter Functions
+## Filter functions
 
 ### auth_rules.eq()
 
@@ -219,6 +219,8 @@ auth_rules.check('org_roles', 'role', ARRAY['admin', 'owner'])
 
 ## Combinators
 
+Use these functions to combine multiple conditions.
+
 ### auth_rules.or_()
 
 Combine conditions with OR.
@@ -255,7 +257,9 @@ auth_rules.and_(
 
 ---
 
-## Helper Functions
+## Helper functions
+
+These functions are used internally by Auth Rules.
 
 ### auth_rules.require()
 
@@ -281,7 +285,9 @@ Returns `TRUE` if `value = auth.uid()`, raises exception `42501` if not.
 
 ---
 
-## Error Codes
+## Error codes
+
+Auth Rules uses these PostgreSQL error codes:
 
 | ERRCODE | HTTP Status | Meaning |
 |---------|-------------|---------|

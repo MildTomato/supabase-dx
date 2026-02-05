@@ -1,314 +1,255 @@
-#!/usr/bin/env npx tsx
+#!/usr/bin/env tsx
 /**
- * Generates reference documentation from CLI command definitions.
- * Run with: npx tsx scripts/generate-docs.ts
+ * Generate MDX documentation from CLI command specs
+ *
+ * Extracts structure from command specs and merges with optional markdown files:
+ *   docs/intro.md              - Intro prose at the top
+ *   docs/option.<name>.md      - Extra content for a specific option
+ *   docs/example.<slug>.md     - Extra content for a specific example
+ *
+ * Usage:
+ *   pnpm docs:generate
  */
 
-import { Command } from "commander";
-import { writeFileSync, mkdirSync } from "node:fs";
+import { writeFileSync, readFileSync, mkdirSync, existsSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { commandSpecs } from "../src/commands/index.js";
+import type { Command, CommandOption } from "../src/util/commands/types.js";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const DOCS_OUTPUT_DIR = join(
-  __dirname,
-  "../../apps/docs/content/docs/cli/reference"
-);
+const DOCS_OUTPUT_DIR = join(process.cwd(), "..", "apps", "docs", "content", "docs", "cli", "reference");
+const COMMANDS_DIR = join(process.cwd(), "src", "commands");
 
-interface CommandInfo {
-  name: string;
-  fullName: string;
-  description: string;
-  options: OptionInfo[];
-  subcommands: CommandInfo[];
+/**
+ * Get the docs slug for a command
+ */
+function getCommandSlug(command: Command, parent?: Command): string {
+  return parent ? `${parent.name}-${command.name}` : command.name;
 }
 
-interface OptionInfo {
-  short: string | undefined;
-  long: string | undefined;
-  description: string;
-  defaultValue: string | undefined;
-  required: boolean;
+/**
+ * Get the docs directory path for a command
+ */
+function getDocsDir(command: Command, parent?: Command): string {
+  if (parent) {
+    return join(COMMANDS_DIR, parent.name, command.name, "docs");
+  }
+  return join(COMMANDS_DIR, command.name, "docs");
 }
 
-function extractCommandInfo(cmd: Command, parentName = ""): CommandInfo {
-  const fullName = parentName ? `${parentName} ${cmd.name()}` : cmd.name();
-
-  const options: OptionInfo[] = cmd.options.map((opt) => ({
-    short: opt.short,
-    long: opt.long,
-    description: opt.description || "",
-    defaultValue: opt.defaultValue !== undefined ? String(opt.defaultValue) : undefined,
-    required: opt.required || false,
-  }));
-
-  const subcommands: CommandInfo[] = cmd.commands.map((sub) =>
-    extractCommandInfo(sub, fullName)
-  );
-
-  return {
-    name: cmd.name(),
-    fullName,
-    description: cmd.description() || "",
-    options,
-    subcommands,
-  };
+/**
+ * Read a markdown file from the docs directory if it exists
+ */
+function readDocFile(command: Command, parent: Command | undefined, filename: string): string | null {
+  const docsDir = getDocsDir(command, parent);
+  const filePath = join(docsDir, filename);
+  if (existsSync(filePath)) {
+    return readFileSync(filePath, "utf-8").trim();
+  }
+  return null;
 }
 
-function generateOptionTable(options: OptionInfo[]): string {
-  if (options.length === 0) return "";
-
-  const rows = options.map((opt) => {
-    const flags = [opt.short, opt.long].filter(Boolean).join(", ");
-    const defaultStr = opt.defaultValue ? ` (default: \`${opt.defaultValue}\`)` : "";
-    return `| \`${flags}\` | ${opt.description}${defaultStr} |`;
-  });
-
-  return `
-## Options
-
-| Flag | Description |
-|------|-------------|
-${rows.join("\n")}
-`;
+/**
+ * Slugify a string for matching filenames
+ */
+function slugify(str: string): string {
+  return str.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
-function generateCommandMdx(cmd: CommandInfo, isSubcommand = false): string {
-  const title = isSubcommand ? cmd.fullName : cmd.name;
-  const heading = isSubcommand ? "##" : "#";
+/**
+ * Get a human-readable type string
+ */
+function getTypeString(type: CommandOption["type"]): string {
+  if (Array.isArray(type)) {
+    return `${getTypeString(type[0])}[]`;
+  }
+  if (type === String) return "string";
+  if (type === Boolean) return "boolean";
+  if (type === Number) return "number";
+  return "unknown";
+}
 
-  let content = `---
-title: "${cmd.fullName}"
-description: "${cmd.description}"
----
+/**
+ * Convert a command spec to MDX content
+ */
+function commandToMdx(command: Command, parent?: Command): string {
+  const fullName = parent ? `${parent.name} ${command.name}` : command.name;
+  const title = `supa ${fullName}`;
 
-${cmd.description}
+  const lines: string[] = [
+    "---",
+    `title: "${title}"`,
+    `description: "${command.description}"`,
+    "---",
+    "",
+  ];
 
-\`\`\`bash
-${cmd.fullName} [options]
-\`\`\`
-${generateOptionTable(cmd.options)}`;
-
-  if (cmd.subcommands.length > 0) {
-    content += `
-## Subcommands
-
-| Command | Description |
-|---------|-------------|
-${cmd.subcommands.map((sub) => `| [\`${sub.name}\`](/docs/cli/reference/${sub.fullName.replace(/ /g, "-")}) | ${sub.description} |`).join("\n")}
-`;
+  // Intro prose (from docs/intro.md or command.longDescription)
+  const intro = readDocFile(command, parent, "intro.md");
+  if (intro) {
+    lines.push(intro, "");
+  } else if (command.longDescription) {
+    lines.push(command.longDescription, "");
   }
 
-  return content;
-}
+  // Usage - always generated from spec
+  const usageArgs = command.arguments
+    .map((arg) => (arg.required ? `<${arg.name}>` : `[${arg.name}]`))
+    .join(" ");
+  const hasOptions = command.options.length > 0;
+  const usage = `supa ${fullName}${usageArgs ? ` ${usageArgs}` : ""}${hasOptions ? " [options]" : ""}`;
 
-function generateIndexMdx(commands: CommandInfo[]): string {
-  const rows = commands.map((cmd) => {
-    const link = `/docs/cli/reference/${cmd.name}`;
-    return `| [\`${cmd.name}\`](${link}) | ${cmd.description} |`;
-  });
+  lines.push("## Usage", "", "```bash", usage, "```", "");
 
-  return `---
-title: Command Reference
-description: Complete reference for all CLI commands
----
-
-Auto-generated from CLI source code.
-
-## Commands
-
-| Command | Description |
-|---------|-------------|
-${rows.join("\n")}
-`;
-}
-
-function writeCommandDocs(cmd: CommandInfo, isRoot = true) {
-  const filename = cmd.fullName.replace(/ /g, "-") + ".mdx";
-  const filepath = join(DOCS_OUTPUT_DIR, filename);
-
-  writeFileSync(filepath, generateCommandMdx(cmd, !isRoot));
-  console.log(`Generated: ${filename}`);
-
-  // Generate docs for subcommands
-  for (const sub of cmd.subcommands) {
-    writeCommandDocs(sub, false);
+  // Arguments - from spec
+  if (command.arguments.length > 0) {
+    lines.push("## Arguments", "");
+    lines.push("| Argument | Required | Description |");
+    lines.push("|----------|----------|-------------|");
+    for (const arg of command.arguments) {
+      const desc = arg.multiple ? "(can be repeated)" : "";
+      lines.push(`| \`${arg.name}\` | ${arg.required ? "Yes" : "No"} | ${desc} |`);
+    }
+    lines.push("");
   }
-}
 
-function generateMetaJson(commands: CommandInfo[]): string {
-  const pages = ["index", ...commands.map((cmd) => cmd.name)];
-
-  // Add subcommand pages
-  for (const cmd of commands) {
-    for (const sub of cmd.subcommands) {
-      pages.push(sub.fullName.replace(/ /g, "-"));
+  // Subcommands - from spec
+  if (command.subcommands && command.subcommands.length > 0) {
+    const visibleSubs = command.subcommands.filter((s) => !s.hidden);
+    if (visibleSubs.length > 0) {
+      lines.push("## Subcommands", "");
+      lines.push("| Command | Description |");
+      lines.push("|---------|-------------|");
+      for (const sub of visibleSubs) {
+        const subSlug = getCommandSlug(sub, command);
+        lines.push(`| [\`${sub.name}\`](/docs/cli/reference/${subSlug}) | ${sub.description} |`);
+      }
+      lines.push("");
     }
   }
 
-  return JSON.stringify(
-    {
-      title: "Reference",
-      pages,
-    },
-    null,
-    2
+  // Options - from spec
+  const visibleOptions = command.options.filter(
+    (opt) => !opt.deprecated && opt.description !== undefined
   );
-}
 
-async function main() {
-  // Dynamically import the CLI to get the program
-  // We need to mock process.argv to prevent it from parsing
-  const originalArgv = process.argv;
-  process.argv = ["node", "cli.tsx", "--help"];
+  if (visibleOptions.length > 0) {
+    lines.push("## Options", "");
+    lines.push("| Option | Type | Description |");
+    lines.push("|--------|------|-------------|");
+    for (const opt of visibleOptions) {
+      const flag = opt.shorthand
+        ? `-${opt.shorthand}, --${opt.name}`
+        : `--${opt.name}`;
+      const typeStr = getTypeString(opt.type);
+      const argStr = opt.argument ? ` <${opt.argument}>` : "";
+      lines.push(`| \`${flag}${argStr}\` | ${typeStr} | ${opt.description} |`);
+    }
+    lines.push("");
 
-  // Create a fresh program for extraction (don't run the actual CLI)
-  const program = new Command();
-
-  program
-    .name("supa")
-    .description("Supabase DX CLI - experimental developer experience tools");
-
-  // Define all commands (mirror from cli.tsx but without actions)
-  program
-    .command("init")
-    .description("Initialize a new supabase project")
-    .option("-y, --yes", "Skip prompts and use defaults")
-    .option("--org <slug>", "Organization slug")
-    .option("--project <ref>", "Link to existing project by ref")
-    .option("--name <name>", "Name for new project (requires --org and --region)")
-    .option("--region <region>", "Region for new project (e.g., us-east-1)")
-    .option("--json", "Output as JSON");
-
-  program
-    .command("orgs")
-    .description("List organizations")
-    .option("--json", "Output as JSON");
-
-  program
-    .command("dev")
-    .description("Watcher that auto syncs changes to hosted environment [long-running]")
-    .option("-p, --profile <name>", "Profile to use")
-    .option("--debounce <ms>", "Debounce interval for file changes", "500ms")
-    .option("--types-interval <interval>", "Interval for regenerating types", "30s")
-    .option("--no-branch-watch", "Disable git branch watching")
-    .option("--seed", "Run seed files after schema sync")
-    .option("--no-seed", "Disable seeding even if enabled in config")
-    .option("--dry-run", "Show what would be synced without applying")
-    .option("-v, --verbose", "Show detailed pg-delta logging")
-    .option("--json", "Output as JSON (events as newline-delimited JSON)");
-
-  const projects = program
-    .command("projects")
-    .description("Manage projects");
-
-  projects
-    .command("list")
-    .description("List all projects")
-    .option("--json", "Output as JSON")
-    .option("--org <id>", "Filter by organization ID");
-
-  projects
-    .command("new")
-    .description("Create a new project")
-    .option("--org <id>", "Organization ID")
-    .option("--region <region>", "Region (e.g., us-east-1)")
-    .option("--name <name>", "Project name")
-    .option("-y, --yes", "Skip confirmation prompts");
-
-  const project = program
-    .command("project")
-    .description("Project operations");
-
-  project
-    .command("pull")
-    .description("Pull remote state to local (remote → local)")
-    .option("-p, --profile <name>", "Profile to use")
-    .option("--plan", "Show what would happen without making changes")
-    .option("--types-only", "Only generate TypeScript types")
-    .option("--schemas <schemas>", "Schemas to include for type generation", "public")
-    .option("--json", "Output as JSON")
-    .option("-v, --verbose", "Show detailed pg-delta logging");
-
-  project
-    .command("push")
-    .description("Push local changes to remote (local → remote)")
-    .option("-p, --profile <name>", "Profile to use")
-    .option("--plan", "Show what would happen without making changes")
-    .option("-y, --yes", "Skip confirmation prompt")
-    .option("--migrations-only", "Only apply migrations")
-    .option("--config-only", "Only apply config changes")
-    .option("--json", "Output as JSON")
-    .option("-v, --verbose", "Show detailed pg-delta logging");
-
-  project
-    .command("dev")
-    .description("Watcher that auto syncs changes to hosted environment [long-running]")
-    .option("-p, --profile <name>", "Profile to use")
-    .option("--debounce <ms>", "Debounce interval for file changes", "500ms")
-    .option("--types-interval <interval>", "Interval for regenerating types", "30s")
-    .option("--no-branch-watch", "Disable git branch watching")
-    .option("--seed", "Run seed files after schema sync")
-    .option("--no-seed", "Disable seeding even if enabled in config")
-    .option("--dry-run", "Show what would be synced without applying")
-    .option("-v, --verbose", "Show detailed pg-delta logging")
-    .option("--json", "Output as JSON");
-
-  project
-    .command("seed")
-    .description("Run seed files against the database")
-    .option("-p, --profile <name>", "Profile to use")
-    .option("--dry-run", "Show what would be seeded without applying")
-    .option("-v, --verbose", "Show detailed logging")
-    .option("--json", "Output as JSON");
-
-  project
-    .command("seed-status")
-    .description("Show seed configuration and files")
-    .option("--json", "Output as JSON");
-
-  project
-    .command("api-keys")
-    .description("List API keys for the project")
-    .option("-p, --profile <name>", "Profile to use")
-    .option("--reveal", "Show full API keys (not masked)")
-    .option("--json", "Output as JSON");
-
-  project
-    .command("profile")
-    .description("View or change workflow profile")
-    .option("--set <profile>", "Set workflow profile (solo, staged, preview, preview-git)")
-    .option("--json", "Output as JSON");
-
-  process.argv = originalArgv;
-
-  // Extract command info
-  const rootInfo = extractCommandInfo(program);
-  const topLevelCommands = rootInfo.subcommands;
-
-  // Create output directory
-  mkdirSync(DOCS_OUTPUT_DIR, { recursive: true });
-
-  // Generate index
-  writeFileSync(
-    join(DOCS_OUTPUT_DIR, "index.mdx"),
-    generateIndexMdx(topLevelCommands)
-  );
-  console.log("Generated: index.mdx");
-
-  // Generate meta.json
-  writeFileSync(
-    join(DOCS_OUTPUT_DIR, "meta.json"),
-    generateMetaJson(topLevelCommands)
-  );
-  console.log("Generated: meta.json");
-
-  // Generate command docs
-  for (const cmd of topLevelCommands) {
-    writeCommandDocs(cmd);
+    // Option details from docs/option.<name>.md
+    for (const opt of visibleOptions) {
+      const optionDoc = readDocFile(command, parent, `option.${opt.name}.md`);
+      if (optionDoc) {
+        lines.push(`### \`--${opt.name}\``, "");
+        lines.push(optionDoc, "");
+      }
+    }
   }
 
-  console.log("\nDocs generated successfully!");
+  // Examples - from spec
+  if (command.examples && command.examples.length > 0) {
+    lines.push("## Examples", "");
+    for (const example of command.examples) {
+      const exampleSlug = slugify(example.name);
+      lines.push(`### ${example.name}`, "");
+
+      // Check for extra docs/example.<slug>.md content (before code block)
+      const exampleDoc = readDocFile(command, parent, `example.${exampleSlug}.md`);
+      if (exampleDoc) {
+        lines.push(exampleDoc, "");
+      }
+
+      const values = Array.isArray(example.value) ? example.value : [example.value];
+      lines.push("```bash");
+      for (const value of values) {
+        lines.push(value);
+      }
+      lines.push("```", "");
+    }
+  }
+
+  return lines.join("\n");
 }
 
-main().catch(console.error);
+/**
+ * Write MDX file for a command
+ */
+function writeCommandDoc(command: Command, parent?: Command): void {
+  const slug = getCommandSlug(command, parent);
+  const filePath = join(DOCS_OUTPUT_DIR, `${slug}.mdx`);
+
+  mkdirSync(dirname(filePath), { recursive: true });
+
+  const content = commandToMdx(command, parent);
+  writeFileSync(filePath, content);
+
+  const docsDir = getDocsDir(command, parent);
+  const hasDocsDir = existsSync(docsDir);
+  console.log(`  ${slug}.mdx${hasDocsDir ? " (+docs/)" : ""}`);
+
+  // Process subcommands recursively
+  if (command.subcommands) {
+    for (const sub of command.subcommands) {
+      if (!sub.hidden) {
+        writeCommandDoc(sub, command);
+      }
+    }
+  }
+}
+
+/**
+ * Generate index page
+ */
+function writeIndexDoc(): void {
+  const filePath = join(DOCS_OUTPUT_DIR, "index.mdx");
+
+  const lines: string[] = [
+    "---",
+    'title: "CLI Reference"',
+    'description: "Complete reference for all supa CLI commands"',
+    "---",
+    "",
+    "Complete reference for all `supa` CLI commands.",
+    "",
+    "## Commands",
+    "",
+    "| Command | Description |",
+    "|---------|-------------|",
+  ];
+
+  for (const cmd of commandSpecs) {
+    if (cmd.hidden) continue;
+    lines.push(`| [\`${cmd.name}\`](/docs/cli/reference/${cmd.name}) | ${cmd.description} |`);
+  }
+
+  lines.push("");
+  writeFileSync(filePath, lines.join("\n"));
+  console.log("  index.mdx");
+}
+
+// Main
+console.log("Generating CLI docs from command specs...");
+console.log("");
+
+if (!existsSync(DOCS_OUTPUT_DIR)) {
+  mkdirSync(DOCS_OUTPUT_DIR, { recursive: true });
+}
+
+writeIndexDoc();
+
+for (const command of commandSpecs) {
+  writeCommandDoc(command);
+}
+
+console.log("");
+console.log("Done!");

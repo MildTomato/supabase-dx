@@ -5,11 +5,10 @@ description: How Auth Rules components fit together
 
 This page explains how the different parts of Auth Rules work together.
 
-## System Tables
+## System tables
 
-Auth Rules stores its configuration in two tables:
-
-The `auth_rules.claims` table stores claim definitions:
+Auth Rules stores its configuration in two tables. The `auth_rules.claims`
+table stores claim definitions:
 
 ```sql title="schema.sql"
 CREATE TABLE auth_rules.claims (
@@ -35,7 +34,7 @@ CREATE TABLE auth_rules.rules (
 );
 ```
 
-## Flow: Defining a Claim
+## Flow: defining a claim
 
 When you call `auth_rules.claim()`:
 
@@ -56,7 +55,7 @@ AS SELECT user_id, org_id FROM org_members;
 
 The `security_invoker = false` setting means the view runs with the owner's privileges (postgres), not the calling user's. This allows the view to read tables that `authenticated` users can't access directly.
 
-## Flow: Defining a Rule
+## Flow: defining a rule
 
 When you call `auth_rules.rule()`:
 
@@ -75,7 +74,7 @@ The system:
    - SELECT → Creates a view
    - INSERT/UPDATE/DELETE → Creates INSTEAD OF triggers
 
-## View Generation (SELECT)
+## View generation (SELECT)
 
 For SELECT rules, a view is created with WHERE clauses:
 
@@ -96,7 +95,7 @@ Key points:
 - `security_invoker = false` allows querying claims views
 - WHERE clause filters rows based on user's claims
 
-## Trigger Generation (INSERT/UPDATE/DELETE)
+## Trigger generation (INSERT/UPDATE/DELETE)
 
 For write operations, INSTEAD OF triggers validate before executing:
 
@@ -126,9 +125,10 @@ FOR EACH ROW EXECUTE FUNCTION data_api.documents_insert_trigger();
 
 This provides explicit error messages instead of silent failures.
 
-## Require Functions
+## Require functions
 
-For more explicit error handling in views, Auth Rules provides `require` functions:
+For more explicit error handling in views, Auth Rules provides `require`
+functions:
 
 ```sql title="internals.sql"
 -- Check claim membership
@@ -144,7 +144,7 @@ These are marked `VOLATILE` to ensure PostgreSQL evaluates them after other WHER
 
 ## Cleanup
 
-The `auth_rules.generated_objects` table tracks what was created:
+The `auth_rules.generated_objects` table tracks what Auth Rules created:
 
 ```sql title="schema.sql"
 CREATE TABLE auth_rules.generated_objects (

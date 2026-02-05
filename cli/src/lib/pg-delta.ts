@@ -981,7 +981,7 @@ export async function diffSchemaWithPgDelta(
       return { hasChanges: false, statements: [], plan: null };
     }
 
-    console.error(`[pg-delta] Found ${sortedStatements.length} changes to apply`);
+    log(`[pg-delta] Found ${sortedStatements.length} changes to apply`);
 
     // Create a modified plan with sorted statements
     const filteredPlan = {

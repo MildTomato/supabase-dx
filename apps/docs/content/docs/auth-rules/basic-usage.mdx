@@ -1,15 +1,15 @@
 ---
-title: Basic Usage
+title: Basic usage
 description: Common authorization patterns
 ---
 
-This page covers the most common authorization patterns you'll need. Each example shows what you want to achieve and the rules to make it happen.
+This page covers the most common authorization patterns you need. Each example
+shows what you want to achieve and the rules to make it happen.
 
-## User Owns Their Data
+## User owns their data
 
-The simplest pattern: users can only see their own records.
-
-Use `auth_rules.user_id()` to match the authenticated user:
+The simplest pattern is when users can only see their own records. Use
+`auth_rules.user_id()` to match the authenticated user:
 
 ```sql title="rules.sql"
 SELECT auth_rules.rule('profiles',
@@ -20,11 +20,10 @@ SELECT auth_rules.rule('profiles',
 
 Now `GET /profiles` returns only the current user's profile.
 
-## Organization Membership
+## Organization membership
 
-Users can see data in organizations they belong to.
-
-First, define which orgs each user can access:
+Users can see data in organizations they belong to. First, define which orgs
+each user can access:
 
 ```sql title="claims.sql"
 SELECT auth_rules.claim('org_ids', $$
@@ -51,9 +50,9 @@ await supabase.from('documents').select('*')
 await supabase.from('documents').select('*').eq('org_id', 'org-123')
 ```
 
-## Team Membership
+## Team membership
 
-Same pattern works for teams, projects, or any entity:
+The same pattern works for teams, projects, or any entity:
 
 ```sql title="claims.sql"
 SELECT auth_rules.claim('team_ids', $$
@@ -68,11 +67,11 @@ SELECT auth_rules.rule('projects',
 );
 ```
 
-## Creating Records
+## Creating records
 
-For inserts, you typically want to ensure users can only create records in orgs/teams they belong to, and that they're recorded as the creator.
-
-Combine multiple conditions to validate the insert:
+For inserts, you typically want to ensure users can only create records in
+orgs or teams they belong to, and that they're recorded as the creator. Combine
+multiple conditions to validate the insert:
 
 ```sql title="rules.sql"
 SELECT auth_rules.rule('documents',
@@ -100,7 +99,7 @@ await supabase.from('documents').insert({
 })
 ```
 
-## Updating Records
+## Updating records
 
 For updates, specify which records users can modify:
 
@@ -114,9 +113,9 @@ SELECT auth_rules.rule('documents',
 
 Users can only update documents they created in orgs they belong to.
 
-## Deleting Records
+## Deleting records
 
-Restrict deletes to the record owner:
+To restrict deletes to the record owner:
 
 ```sql title="rules.sql"
 SELECT auth_rules.rule('documents',
@@ -125,7 +124,7 @@ SELECT auth_rules.rule('documents',
 );
 ```
 
-## Public and Private Data
+## Public and private data
 
 Some data is public, some requires membership. Use `or_` to combine conditions:
 
@@ -141,9 +140,9 @@ SELECT auth_rules.rule('documents',
 
 Unauthenticated users see only public documents. Authenticated users see public documents plus documents from their orgs.
 
-## Quick Reference
+## Quick reference
 
-Common patterns at a glance:
+Here are common patterns at a glance:
 
 | What you want | Rule |
 |---------------|------|
@@ -152,7 +151,7 @@ Common patterns at a glance:
 | Team membership | `auth_rules.eq('team_id', auth_rules.one_of('team_ids'))` |
 | Public + private | `auth_rules.or_(eq('is_public', true), ...)` |
 
-## Error Codes
+## Error codes
 
 Write operations (insert, update, delete) return meaningful HTTP errors:
 

@@ -17,6 +17,12 @@ export const docs = defineDocs({
 
 export default defineConfig({
   mdxOptions: {
-    // MDX options
+    rehypeCodeOptions: {
+      // Dark code blocks in both light and dark mode
+      themes: {
+        light: 'github-dark',
+        dark: 'github-dark',
+      },
+    },
   },
 });

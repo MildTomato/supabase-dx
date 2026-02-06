@@ -1,13 +1,15 @@
 import Link from 'next/link';
+import { LogoShapesWave } from '@/components/logo';
 import { Section, ConceptList, WorkflowDiagrams } from '@/components/home';
 
 export default function HomePage() {
   return (
     <main className="min-h-screen">
       <section className="px-6 pt-24 pb-16 max-w-3xl mx-auto">
+        <LogoShapesWave className="mb-6" />
         <p className="text-fd-muted-foreground leading-relaxed max-w-lg">
-          Experimental DX tools for Supabase. Authorization, schema sync,
-          config-as-code.
+          BX is Builder Experience. Experimental DX tools for Supabase.
+          Authorization, schema sync, config-as-code.
         </p>
         <div className="flex gap-4 text-sm mt-8">
           <Link href="/docs" className="text-fd-foreground hover:underline">
@@ -18,6 +20,12 @@ export default function HomePage() {
             className="text-fd-muted-foreground hover:text-fd-foreground transition-colors"
           >
             GitHub
+          </Link>
+          <Link
+            href="https://github.com/mildtomato"
+            className="text-fd-muted-foreground hover:text-fd-foreground transition-colors"
+          >
+            mildtomato
           </Link>
         </div>
       </section>

@@ -7,8 +7,7 @@
     "supa": "./dist/index.js"
   },
   "scripts": {
-    "build": "tsup",
-    "build:binary": "bun build src/index.ts --compile --minify --outfile bin/supa --target=bun && codesign -s - -f bin/supa",
+    "build": "tsup && bun build src/index.ts --compile --minify --outfile bin/supa --target=bun && codesign -s - -f bin/supa",
     "dev": "tsup --watch",
     "start": "node dist/index.js",
     "test": "vitest run",

@@ -3,7 +3,8 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", "bin/**"]
+      "inputs": ["src/**", "app/**", "content/**", "*.ts", "*.tsx", "*.json", "*.config.*"],
+      "outputs": ["dist/**", "bin/**", ".next/**"]
     },
     "dev": {
       "cache": false,

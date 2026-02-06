@@ -1,5 +1,0 @@
-{
-  "buildCommand": "turbo run build --filter=docs",
-  "outputDirectory": "apps/docs/.next",
-  "framework": "nextjs"
-}

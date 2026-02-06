@@ -8,6 +8,7 @@ import {
   orgOption,
   regionOption,
   nameOption,
+  dryRunOption,
 } from "@/util/commands/arg-common.js";
 import type { Command } from "@/util/commands/types.js";
 
@@ -30,6 +31,7 @@ export const initCommand = {
     { ...nameOption, description: "Name for new project (requires --org and --region)" },
     { ...regionOption, description: "Region for new project (e.g., us-east-1)" },
     { ...jsonOption },
+    { ...dryRunOption, description: "Preview what would be created without making changes" },
   ],
   examples: [
     {

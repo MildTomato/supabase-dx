@@ -21,6 +21,7 @@ import { buildApiConfigFromRemote, buildAuthConfigFromRemote } from "@/lib/sync.
 import { WORKFLOW_PROFILES } from "@/lib/workflow-profiles.js";
 import type { WorkflowProfile, SchemaManagement, ConfigSource } from "@/lib/config-types.js";
 import { runInitWizard, type InitResult } from "@/components/InitWizard.js";
+import { createSpinner } from "@/lib/spinner.js";
 
 interface InitOptions {
   yes?: boolean;
@@ -29,6 +30,7 @@ interface InitOptions {
   project?: string;
   name?: string;
   region?: string;
+  dryRun?: boolean;
 }
 
 interface ConfigData {
@@ -196,7 +198,7 @@ export async function initCommand(options: InitOptions): Promise<void> {
   const { ref: projectRef, name: projectName, schemaManagement = "declarative", configSource = "code", workflowProfile = "solo" } = project;
 
   // Fetch project config
-  const spinner = !options.json && process.stdin.isTTY ? p.spinner() : null;
+  const spinner = !options.json && process.stdin.isTTY ? createSpinner() : null;
   spinner?.start("Fetching project config...");
 
   const client = createClient(token);
@@ -224,6 +226,43 @@ export async function initCommand(options: InitOptions): Promise<void> {
   }
 
   spinner?.stop("Project config fetched");
+
+  // Dry run - just show what would happen
+  if (options.dryRun) {
+    if (options.json) {
+      console.log(JSON.stringify({
+        status: "dry_run",
+        project: {
+          id: projectRef,
+          name: projectName,
+        },
+        wouldCreate: [
+          "supabase/config.json",
+          "supabase/migrations/",
+          "supabase/functions/",
+          "supabase/types/",
+          "supabase/schema/public/",
+        ],
+        wouldWriteEnv: !!project.dbPassword,
+      }));
+    } else {
+      console.log();
+      console.log(chalk.yellow("Dry run - no changes made"));
+      console.log();
+      console.log(`${chalk.dim("Would link to:")} ${projectRef} (${projectName})`);
+      console.log();
+      console.log(chalk.dim("Would create:"));
+      console.log("  supabase/config.json");
+      console.log("  supabase/migrations/");
+      console.log("  supabase/functions/");
+      console.log("  supabase/types/");
+      console.log("  supabase/schema/public/");
+      if (project.dbPassword) {
+        console.log("  .env (with SUPABASE_DB_PASSWORD)");
+      }
+    }
+    return;
+  }
 
   // Create directories
   const dirs = [
@@ -326,8 +365,8 @@ export async function initCommand(options: InitOptions): Promise<void> {
     console.log();
     console.log(chalk.dim("  Tip: Use --json for structured output when scripting"));
 
-    // Prompt to run supa dev
-    if (process.stdin.isTTY) {
+    // Prompt to run supa dev (skip if --yes)
+    if (process.stdin.isTTY && !options.yes) {
       console.log();
       const runDev = await p.confirm({
         message: "Run supa dev now?",

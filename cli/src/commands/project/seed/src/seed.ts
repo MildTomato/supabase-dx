@@ -190,6 +190,14 @@ export async function seedCommand(options: SeedOptions): Promise<void> {
     return;
   }
 
+  // Non-TTY check for interactive mode
+  if (!options.json && !process.stdin.isTTY) {
+    console.error("Error: Interactive mode requires a TTY.");
+    console.error("Use --json for non-interactive output.");
+    process.exitCode = 1;
+    return;
+  }
+
   // Dry run - just show what would be seeded
   if (options.dryRun) {
     if (options.json) {

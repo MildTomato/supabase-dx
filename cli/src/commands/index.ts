@@ -10,6 +10,8 @@ import dev, { devCommand } from "./dev/index.js";
 import orgs, { orgsCommand } from "./orgs/index.js";
 import projects, { projectsCommand } from "./projects/index.js";
 import project, { projectCommand } from "./project/index.js";
+import login, { loginCommand } from "./login/index.js";
+import logout, { logoutCommand } from "./logout/index.js";
 
 // Command entries with spec and handler
 interface CommandEntry {
@@ -19,6 +21,8 @@ interface CommandEntry {
 
 // All top-level commands
 const commandEntries: CommandEntry[] = [
+  { spec: loginCommand, handler: login },
+  { spec: logoutCommand, handler: logout },
   { spec: initCommand, handler: init },
   { spec: devCommand, handler: dev },
   { spec: orgsCommand, handler: orgs },

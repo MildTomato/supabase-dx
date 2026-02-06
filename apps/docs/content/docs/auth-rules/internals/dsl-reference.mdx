@@ -182,11 +182,17 @@ auth_rules.one_of(claim_name TEXT)
 
 ### auth_rules.in_claim()
 
-Filter where column is in a claim, optionally with checks.
+Filter where column is in a claim, optionally with a check condition.
 
 ```sql
-auth_rules.in_claim(column_name TEXT, claim_name TEXT, checks... JSONB)
+auth_rules.in_claim(column_name TEXT, claim_name TEXT, check_condition JSONB DEFAULT NULL)
 ```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `column_name` | TEXT | Column to filter on |
+| `claim_name` | TEXT | Claim to check membership against |
+| `check_condition` | JSONB | Optional `auth_rules.check()` for role filtering |
 
 Example:
 

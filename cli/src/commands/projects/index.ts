@@ -85,6 +85,7 @@ async function handleNew(argv: string[]): Promise<number> {
     region: args["--region"],
     name: args["--name"],
     yes: args["--yes"],
+    dryRun: args["--dry-run"],
   });
 
   return 0;

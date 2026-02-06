@@ -14,6 +14,7 @@ import type { WorkflowProfile, SchemaManagement, ConfigSource } from "../lib/con
 import { searchSelect, cancelSymbol } from "./search-select.js";
 import { profileSelect } from "./profile-select.js";
 import { printCommandHeader, S_BAR } from "./command-header.js";
+import { createSpinner } from "../lib/spinner.js";
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -62,7 +63,7 @@ export async function runInitWizard(): Promise<InitResult> {
   const cwd = process.cwd();
   p.log.info(`Directory: ${chalk.dim(cwd)}`);
 
-  const configSpinner = p.spinner();
+  const configSpinner = createSpinner();
   configSpinner.start("Looking for supabase/config.json...");
   // TODO: Actually check for config.json / supabase folder
   await new Promise((r) => setTimeout(r, 200)); // Brief pause to show the check
@@ -72,7 +73,7 @@ export async function runInitWizard(): Promise<InitResult> {
   // Organization
   // ─────────────────────────────────────────────────────────────
 
-  const orgSpinner = p.spinner();
+  const orgSpinner = createSpinner();
   orgSpinner.start("Fetching organizations from api.supabase.com...");
   const orgs = await client.listOrganizations();
   orgSpinner.stop(`Found ${orgs.length} organization${orgs.length === 1 ? "" : "s"}`);
@@ -150,7 +151,7 @@ export async function runInitWizard(): Promise<InitResult> {
 
   if (existingOrg) {
     // Existing org - fetch projects and let user choose
-    const projectSpinner = p.spinner();
+    const projectSpinner = createSpinner();
     projectSpinner.start("Fetching projects from api.supabase.com...");
     const allProjects = await client.listProjects();
     const orgProjects = allProjects.filter((proj) => proj.organization_slug === existingOrg!.slug);
@@ -337,7 +338,7 @@ export async function runInitWizard(): Promise<InitResult> {
 
   // Create org if needed
   if (newOrgName) {
-    const createOrgSpinner = p.spinner();
+    const createOrgSpinner = createSpinner();
     createOrgSpinner.start(`Creating organization "${newOrgName}"...`);
     finalOrg = await createOrgOp({ token, name: newOrgName });
     createOrgSpinner.stop(`Created organization "${newOrgName}"`);
@@ -347,7 +348,7 @@ export async function runInitWizard(): Promise<InitResult> {
 
   // Create project if needed
   if (newProjectName && newProjectRegion) {
-    const createProjectSpinner = p.spinner();
+    const createProjectSpinner = createSpinner();
     createProjectSpinner.start(`Creating project "${newProjectName}"...`);
     const result = await createProjectOp({
       token,

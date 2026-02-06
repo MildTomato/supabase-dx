@@ -37,6 +37,7 @@ import {
   type ProjectConfig,
   type ConfigDiff,
 } from "@/lib/sync.js";
+import { createSpinner } from "@/lib/spinner.js";
 
 // Heartbeat frames for idle state
 const HEARTBEAT_FRAMES = ["⠏", "⠇", "⠧", "⠦", "⠴", "⠼", "⠸", "⠹", "⠙", "⠋"];
@@ -900,7 +901,7 @@ export async function devCommand(options: DevOptions): Promise<void> {
   let lastActivity = Date.now();
   let debounceTimer: NodeJS.Timeout | null = null;
   let isSpinnerActive = false;
-  const spinner = p.spinner();
+  const spinner = createSpinner();
 
   const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, "");
 

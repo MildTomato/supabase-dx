@@ -7,6 +7,7 @@ import chalk from "chalk";
 import { createClient } from "@/lib/api.js";
 import { getAccessToken } from "@/lib/config.js";
 import { searchSelect } from "@/components/search-select.js";
+import { createSpinner } from "@/lib/spinner.js";
 
 interface OrgsOptions {
   json?: boolean;
@@ -24,6 +25,7 @@ export async function orgsCommand(options: OrgsOptions): Promise<void> {
         "Not logged in. Set SUPABASE_ACCESS_TOKEN environment variable.",
       );
     }
+    process.exitCode = 1;
     return;
   }
 
@@ -57,7 +59,7 @@ export async function orgsCommand(options: OrgsOptions): Promise<void> {
   }
 
   // Interactive mode - fetch and display
-  const spinner = p.spinner();
+  const spinner = createSpinner();
   spinner.start("Fetching organizations...");
 
   try {

@@ -10,6 +10,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { getCommand, suggestCommand, commandSpecs } from "@/commands/index.js";
 import { renderHelp } from "@/util/commands/help.js";
 import type { Command } from "@/util/commands/types.js";
+import { getAccessTokenAsync } from "@/lib/config.js";
 
 const CLI_NAME = "supa";
 const CLI_VERSION = "0.0.1";
@@ -67,23 +68,22 @@ const rootCommand: Command = {
 // Auth check
 // ─────────────────────────────────────────────────────────────
 
-const SKIP_AUTH_COMMANDS = ["init", "help"];
+const SKIP_AUTH_COMMANDS = ["init", "help", "login", "logout"];
 
-function checkAuth(commandName: string): boolean {
+async function checkAuth(commandName: string): Promise<boolean> {
   if (SKIP_AUTH_COMMANDS.includes(commandName)) {
     return true;
   }
 
-  if (!process.env.SUPABASE_ACCESS_TOKEN) {
-    console.error(
-      "Error: SUPABASE_ACCESS_TOKEN environment variable is required",
-    );
-    console.error(
-      "Get one at: https://supabase.com/dashboard/account/tokens",
-    );
+  const token = await getAccessTokenAsync();
+  if (!token) {
+    console.error("Not logged in. Run `supa login` or set SUPABASE_ACCESS_TOKEN environment variable.");
+    console.error("Get a token at: https://supabase.com/dashboard/account/tokens");
     return false;
   }
 
+  // Set env var so commands can use it
+  process.env.SUPABASE_ACCESS_TOKEN = token;
   return true;
 }
 
@@ -144,7 +144,7 @@ async function main(): Promise<number> {
 
   // Check auth (skip for --help on any command)
   if (!rest.includes("--help") && !rest.includes("-h")) {
-    if (!checkAuth(commandName)) {
+    if (!(await checkAuth(commandName))) {
       return 1;
     }
   }

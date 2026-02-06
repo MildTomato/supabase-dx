@@ -12,7 +12,8 @@ table stores claim definitions:
 
 ```sql title="schema.sql"
 CREATE TABLE auth_rules.claims (
-  claim_name TEXT PRIMARY KEY,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  claim_name TEXT NOT NULL UNIQUE,
   sql TEXT NOT NULL,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
@@ -157,3 +158,14 @@ CREATE TABLE auth_rules.generated_objects (
 ```
 
 When you call `auth_rules.drop_rules('table_name')`, it uses this table to find and remove all generated objects.
+
+Similarly, `auth_rules.generated_claims` tracks claim views:
+
+```sql title="schema.sql"
+CREATE TABLE auth_rules.generated_claims (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  claim_id UUID REFERENCES auth_rules.claims(id) ON DELETE CASCADE,
+  view_name TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+```

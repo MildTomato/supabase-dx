@@ -1,18 +1,18 @@
 /**
- * Init command handler
+ * Logout command handler
  */
 
 import arg from "arg";
-import { initCommand } from "./command.js";
+import { logoutCommand } from "./command.js";
 import { getFlagsSpecification } from "@/util/commands/get-flags-specification.js";
 import { globalCommandOptions } from "@/util/commands/arg-common.js";
 import { renderHelp } from "@/util/commands/help.js";
-import { initCommand as initHandler } from "./src/init.js";
+import { logoutCommand as logoutHandler } from "./src/logout.js";
 
-export { initCommand };
+export { logoutCommand };
 
-export default async function init(argv: string[]): Promise<number> {
-  const spec = getFlagsSpecification([...initCommand.options, ...globalCommandOptions]);
+export default async function logout(argv: string[]): Promise<number> {
+  const spec = getFlagsSpecification([...logoutCommand.options, ...globalCommandOptions]);
 
   let args: arg.Result<typeof spec>;
   try {
@@ -25,19 +25,13 @@ export default async function init(argv: string[]): Promise<number> {
   }
 
   if (args["--help"]) {
-    renderHelp(initCommand);
+    renderHelp(logoutCommand);
     return 0;
   }
 
-  // Call the existing handler with parsed options
-  await initHandler({
+  await logoutHandler({
     yes: args["--yes"],
     json: args["--json"],
-    org: args["--org"],
-    project: args["--project"],
-    name: args["--name"],
-    region: args["--region"],
-    dryRun: args["--dry-run"],
   });
 
   return 0;

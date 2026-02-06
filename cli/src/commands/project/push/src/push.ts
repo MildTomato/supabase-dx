@@ -34,6 +34,7 @@ import {
 } from "@/lib/pg-delta.js";
 import { printCommandHeader, S_BAR } from "@/components/command-header.js";
 import { C } from "@/lib/colors.js";
+import { createSpinner } from "@/lib/spinner.js";
 
 export interface PushOptions {
   profile?: string;
@@ -275,6 +276,13 @@ export async function pushCommand(options: PushOptions) {
   const client = createClient(token);
   const projectConfig = config as ProjectConfig;
 
+  // Non-TTY check for interactive mode
+  if (!options.json && !process.stdin.isTTY) {
+    console.error("Error: Interactive mode requires a TTY.");
+    console.error("Use --json for non-interactive output.");
+    process.exit(1);
+  }
+
   // JSON mode
   if (options.json) {
     try {
@@ -438,7 +446,7 @@ export async function pushCommand(options: PushOptions) {
   }
   console.log(S_BAR);
 
-  const spinner = p.spinner();
+  const spinner = createSpinner();
   spinner.start("Connecting...");
 
   try {
@@ -533,7 +541,7 @@ export async function pushCommand(options: PushOptions) {
     }
 
     // Apply changes
-    const applySpinner = p.spinner();
+    const applySpinner = createSpinner();
     applySpinner.start("Applying changes...");
 
     let appliedCount = 0;

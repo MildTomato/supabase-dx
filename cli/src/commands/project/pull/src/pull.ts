@@ -26,6 +26,7 @@ import {
 import { pullSchemaWithPgDelta, setVerbose } from "@/lib/pg-delta.js";
 import { printCommandHeader, S_BAR } from "@/components/command-header.js";
 import { C } from "@/lib/colors.js";
+import { createSpinner } from "@/lib/spinner.js";
 
 interface PullOptions {
   profile?: string;
@@ -34,6 +35,7 @@ interface PullOptions {
   schemas?: string;
   json?: boolean;
   verbose?: boolean;
+  yes?: boolean;
 }
 
 function printConfigDiffs(diffs: ConfigDiff[], label: string) {
@@ -90,6 +92,13 @@ export async function pullCommand(options: PullOptions) {
   }
 
   const client = createClient(token);
+
+  // Non-TTY check for interactive mode
+  if (!options.json && !process.stdin.isTTY) {
+    console.error("Error: Interactive mode requires a TTY.");
+    console.error("Use --json for non-interactive output.");
+    process.exit(1);
+  }
 
   // JSON mode
   if (options.json) {
@@ -161,7 +170,7 @@ export async function pullCommand(options: PullOptions) {
   }
   console.log(S_BAR);
 
-  const spinner = p.spinner();
+  const spinner = createSpinner();
   spinner.start("Fetching remote state...");
 
   try {
@@ -246,8 +255,8 @@ export async function pullCommand(options: PullOptions) {
       return;
     }
 
-    // Confirm if there are config changes
-    if (hasConfigChanges) {
+    // Confirm if there are config changes (unless --yes)
+    if (hasConfigChanges && !options.yes) {
       const proceed = await p.confirm({
         message: "Pull these changes?",
       });
@@ -259,7 +268,7 @@ export async function pullCommand(options: PullOptions) {
     }
 
     // Apply changes
-    const applySpinner = p.spinner();
+    const applySpinner = createSpinner();
     applySpinner.start("Writing files...");
 
     let configUpdated = false;

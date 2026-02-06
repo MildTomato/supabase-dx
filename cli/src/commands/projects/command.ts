@@ -2,7 +2,7 @@
  * Projects command specification
  */
 
-import { jsonOption, orgOption, regionOption, nameOption, yesOption } from "@/util/commands/arg-common.js";
+import { jsonOption, orgOption, regionOption, nameOption, yesOption, dryRunOption } from "@/util/commands/arg-common.js";
 import type { Command } from "@/util/commands/types.js";
 
 const listSubcommand = {
@@ -28,6 +28,7 @@ const newSubcommand = {
     { ...regionOption },
     { ...nameOption, description: "Project name" },
     { ...yesOption, description: "Skip confirmation prompts" },
+    { ...dryRunOption, description: "Preview what would be created without making changes" },
   ],
   examples: [],
 } as const satisfies Command;

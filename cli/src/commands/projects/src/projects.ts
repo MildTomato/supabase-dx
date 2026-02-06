@@ -9,6 +9,7 @@ import { getAccessToken } from "@/lib/config.js";
 import { formatProjectStatus, REGIONS, type Region } from "@/lib/constants.js";
 import { createProject as createProjectOp } from "@/lib/operations.js";
 import { searchSelect } from "@/components/search-select.js";
+import { createSpinner } from "@/lib/spinner.js";
 
 interface ProjectsOptions {
   action: "list" | "new";
@@ -17,6 +18,7 @@ interface ProjectsOptions {
   region?: string;
   name?: string;
   yes?: boolean;
+  dryRun?: boolean;
 }
 
 function printTable(projects: Project[]) {
@@ -47,7 +49,7 @@ function printTable(projects: Project[]) {
 }
 
 async function listProjects(token: string, orgSlug?: string) {
-  const spinner = p.spinner();
+  const spinner = createSpinner();
   spinner.start("Loading projects...");
 
   try {
@@ -83,7 +85,7 @@ async function createProject(token: string, options: ProjectsOptions) {
   // Get org
   let orgSlug = options.org;
   if (!orgSlug) {
-    const spinner = p.spinner();
+    const spinner = createSpinner();
     spinner.start("Fetching organizations...");
     const orgs = await client.listOrganizations();
     spinner.stop(`Found ${orgs.length} organization${orgs.length === 1 ? "" : "s"}`);
@@ -140,9 +142,21 @@ async function createProject(token: string, options: ProjectsOptions) {
     region = selected as Region;
   }
 
+  // Dry run - just show what would happen
+  if (options.dryRun) {
+    console.log();
+    console.log(chalk.yellow("Dry run - no changes made"));
+    console.log();
+    console.log(chalk.dim("Would create project:"));
+    console.log(`  ${chalk.dim("Name:")} ${projectName}`);
+    console.log(`  ${chalk.dim("Organization:")} ${orgSlug}`);
+    console.log(`  ${chalk.dim("Region:")} ${region}`);
+    return;
+  }
+
   // Create
-  const spinner = p.spinner();
-  spinner.start(`Creating project "${projectName}"...`);
+  const createSpinnerInstance = createSpinner();
+  createSpinnerInstance.start(`Creating project "${projectName}"...`);
 
   try {
     const result = await createProjectOp({
@@ -152,7 +166,7 @@ async function createProject(token: string, options: ProjectsOptions) {
       name: projectName,
     });
 
-    spinner.stop(chalk.green(`Project created: ${result.project.name}`));
+    createSpinnerInstance.stop(chalk.green(`Project created: ${result.project.name}`));
     console.log(`  ${chalk.dim("Ref:")} ${result.project.ref}`);
     console.log(`  ${chalk.dim("Region:")} ${result.project.region}`);
 
@@ -161,7 +175,7 @@ async function createProject(token: string, options: ProjectsOptions) {
       console.log(chalk.yellow("\n  Save this password - it won't be shown again!"));
     }
   } catch (error) {
-    spinner.stop("Failed to create project");
+    createSpinnerInstance.stop("Failed to create project");
     console.error(
       chalk.red("Error:"),
       error instanceof Error ? error.message : "Unknown error"
@@ -179,6 +193,7 @@ export async function projectsCommand(options: ProjectsOptions) {
     } else {
       console.error("Not logged in. Set SUPABASE_ACCESS_TOKEN environment variable.");
     }
+    process.exitCode = 1;
     return;
   }
 

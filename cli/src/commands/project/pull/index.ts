@@ -37,6 +37,7 @@ export default async function pull(argv: string[]): Promise<number> {
     schemas: args["--schemas"],
     json: args["--json"],
     verbose: args["--verbose"],
+    yes: args["--yes"],
   });
 
   return 0;

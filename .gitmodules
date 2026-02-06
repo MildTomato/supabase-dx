@@ -19,3 +19,6 @@
 [submodule "external/clack"]
 	path = external/clack
 	url = https://github.com/natemoo-re/clack.git
+[submodule "external/supabase-cli"]
+	path = external/supabase-cli
+	url = https://github.com/supabase/cli.git

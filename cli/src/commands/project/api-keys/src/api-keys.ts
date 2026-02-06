@@ -12,6 +12,7 @@ import {
   getProjectRef,
 } from "@/lib/config.js";
 import { getCurrentBranch } from "@/lib/git.js";
+import { createSpinner } from "@/lib/spinner.js";
 
 interface ApiKeysOptions {
   profile?: string;
@@ -74,6 +75,7 @@ export async function apiKeysCommand(options: ApiKeysOptions): Promise<void> {
     } else {
       console.error(chalk.red("Not logged in. Set SUPABASE_ACCESS_TOKEN."));
     }
+    process.exitCode = 1;
     return;
   }
 
@@ -86,6 +88,7 @@ export async function apiKeysCommand(options: ApiKeysOptions): Promise<void> {
     } else {
       console.error(chalk.red("No supabase/config.json found. Run `supa init` first."));
     }
+    process.exitCode = 1;
     return;
   }
 
@@ -99,6 +102,7 @@ export async function apiKeysCommand(options: ApiKeysOptions): Promise<void> {
     } else {
       console.error(chalk.red("No project ref configured. Run `supa init` first."));
     }
+    process.exitCode = 1;
     return;
   }
 
@@ -119,8 +123,16 @@ export async function apiKeysCommand(options: ApiKeysOptions): Promise<void> {
     return;
   }
 
+  // Non-TTY check for interactive mode
+  if (!process.stdin.isTTY) {
+    console.error("Error: Interactive mode requires a TTY.");
+    console.error("Use --json for non-interactive output.");
+    process.exitCode = 1;
+    return;
+  }
+
   // Interactive mode
-  const spinner = p.spinner();
+  const spinner = createSpinner();
   spinner.start("Loading API keys...");
 
   try {

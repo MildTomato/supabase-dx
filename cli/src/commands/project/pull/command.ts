@@ -7,6 +7,7 @@ import {
   planOption,
   jsonOption,
   verboseOption,
+  yesOption,
 } from "@/util/commands/arg-common.js";
 import type { Command } from "@/util/commands/types.js";
 
@@ -35,6 +36,7 @@ export const pullSubcommand = {
     },
     { ...jsonOption },
     { ...verboseOption, description: "Show detailed pg-delta logging" },
+    { ...yesOption, description: "Skip confirmation prompt" },
   ],
   examples: [
     {

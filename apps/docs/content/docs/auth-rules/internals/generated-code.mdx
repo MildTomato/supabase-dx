@@ -95,11 +95,7 @@ CREATE OR REPLACE FUNCTION data_api.documents_update_trigger()
 RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER AS $$
 BEGIN
   UPDATE public.documents
-  SET id = NEW.id,
-      org_id = NEW.org_id,
-      title = NEW.title,
-      content = NEW.content,
-      created_by = NEW.created_by
+  SET id = NEW.id
   WHERE id = OLD.id
     AND created_by = auth.uid();
 
@@ -111,7 +107,13 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+```
 
+<Callout type="info">
+The UPDATE trigger validates access via the WHERE clause. The actual column updates are handled by PostgreSQL's INSTEAD OF trigger mechanism, which passes the full NEW record back to the view.
+</Callout>
+
+```sql
 DROP TRIGGER IF EXISTS documents_update ON data_api.documents;
 CREATE TRIGGER documents_update
 INSTEAD OF UPDATE ON data_api.documents

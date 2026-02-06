@@ -79,6 +79,7 @@ function commandToMdx(command: Command, parent?: Command): string {
     "---",
     `title: "${title}"`,
     `description: "${command.description}"`,
+    "generated: true",
     "---",
     "",
   ];
@@ -217,6 +218,7 @@ function writeIndexDoc(): void {
     "---",
     'title: "CLI Reference"',
     'description: "Complete reference for all supa CLI commands"',
+    "generated: true",
     "---",
     "",
     "Complete reference for all `supa` CLI commands.",

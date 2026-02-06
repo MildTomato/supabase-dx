@@ -1,0 +1,59 @@
+---
+title: Analytics configuration
+description: Configure Logflare for log aggregation
+---
+
+The `analytics` section configures Logflare, which provides log aggregation
+and analysis for your Supabase project.
+
+## Basic configuration
+
+```json title="supabase/config.json"
+{
+  "analytics": {
+    "enabled": true,
+    "backend": "postgres"
+  }
+}
+```
+
+## Backend options
+
+Choose where analytics data is stored:
+
+```json
+{
+  "analytics": {
+    "backend": "postgres"
+  }
+}
+```
+
+| Backend | Description |
+|---------|-------------|
+| `postgres` | Store logs in PostgreSQL. Good for most use cases. |
+| `bigquery` | Store logs in Google BigQuery. Better for high-volume logging. |
+
+## Port configuration
+
+Configure ports for local development:
+
+```json
+{
+  "analytics": {
+    "port": 54327,
+    "vector_port": 54328
+  }
+}
+```
+
+The `vector_port` is used for syslog ingestion via Vector.
+
+## Reference
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `enabled` | boolean | `false` | Enable analytics |
+| `port` | number | `54327` | Logflare API port |
+| `vector_port` | number | `54328` | Syslog ingestion port |
+| `backend` | string | `postgres` | Storage backend |

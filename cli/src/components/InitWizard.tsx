@@ -6,7 +6,7 @@
 import * as p from "@clack/prompts";
 import chalk from "chalk";
 import { createClient, type Organization, type Project } from "../lib/api.js";
-import { getAccessToken } from "../lib/config.js";
+import { getAccessTokenAsync } from "../lib/config.js";
 import { createProject as createProjectOp, createOrganization as createOrgOp } from "../lib/operations.js";
 import { REGIONS, type Region } from "../lib/constants.js";
 import { WORKFLOW_PROFILES } from "../lib/workflow-profiles.js";
@@ -38,9 +38,9 @@ function isCancel(value: unknown): value is symbol {
 // ─────────────────────────────────────────────────────────────
 
 export async function runInitWizard(): Promise<InitResult> {
-  const token = getAccessToken();
+  const token = await getAccessTokenAsync();
   if (!token) {
-    throw new Error("Not authenticated");
+    throw new Error("Not authenticated. Run `supa login` or set SUPABASE_ACCESS_TOKEN.");
   }
 
   const client = createClient(token);

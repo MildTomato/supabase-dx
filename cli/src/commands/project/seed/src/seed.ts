@@ -6,7 +6,7 @@ import { join, relative } from "node:path";
 import { existsSync } from "node:fs";
 import { createClient } from "@/lib/api.js";
 import {
-  getAccessToken,
+  requireAuth,
   loadProjectConfig,
   getProfileOrAuto,
   getProjectRef,
@@ -77,19 +77,7 @@ export async function seedCommand(options: SeedOptions): Promise<void> {
   }
 
   // Get token
-  const token = getAccessToken();
-  if (!token) {
-    if (options.json) {
-      console.log(
-        JSON.stringify({ status: "error", message: "Not authenticated" }),
-      );
-    } else {
-      console.error(`\n${C.error}Error:${C.reset} Not authenticated`);
-      console.error(`  Set SUPABASE_ACCESS_TOKEN environment variable\n`);
-    }
-    process.exitCode = 1;
-    return;
-  }
+  const token = await requireAuth({ json: options.json });
 
   // Check for db password
   const dbPassword = process.env.SUPABASE_DB_PASSWORD;

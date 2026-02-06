@@ -1,0 +1,100 @@
+---
+title: General settings
+description: Project identity and workflow configuration
+---
+
+General settings control your project's identity and how the CLI manages schema
+and configuration changes.
+
+## Project identity
+
+The `project_id` identifies your Supabase project. It's set automatically when
+you run `supa init` and link to a project.
+
+```json
+{
+  "project_id": "my-app-production"
+}
+```
+
+This ID appears in your project URL (`my-app-production.supabase.co`) and is
+used to distinguish between multiple projects on the same machine.
+
+## Workflow profile
+
+The `workflow_profile` determines how commands like `supa dev` and
+`supa project push` behave.
+
+```json
+{
+  "workflow_profile": "solo"
+}
+```
+
+| Profile | Description |
+|---------|-------------|
+| `solo` | Direct development against production. Best for solo developers or early prototypes. |
+| `staged` | Changes flow through a staging environment before production. |
+| `preview` | Manual preview environments for testing changes in isolation. |
+| `preview-git` | Git-driven preview environments that auto-create per branch. |
+
+For details on each workflow, see [Workflow Profiles](/docs/cli/workflow-profiles).
+
+## Schema management
+
+The `schema_management` setting controls how database schema changes are
+tracked and applied.
+
+```json
+{
+  "schema_management": "declarative"
+}
+```
+
+| Mode | Description |
+|------|-------------|
+| `declarative` | Describe the desired state in SQL files. The CLI calculates and applies the diff. |
+| `migrations` | Traditional versioned migration files. You write the up/down migrations manually. |
+
+Declarative mode is recommended for most projects. It reduces boilerplate and
+prevents migration drift.
+
+## Config source
+
+The `config_source` setting determines where your project configuration lives.
+
+```json
+{
+  "config_source": "code"
+}
+```
+
+| Source | Description |
+|--------|-------------|
+| `code` | Your local `config.json` is the source of truth. Push changes with `supa project push`. |
+| `remote` | The Supabase dashboard is the source of truth. Pull changes with `supa project pull`. |
+
+Use `code` when you want configuration in version control. Use `remote` when
+multiple team members manage settings through the dashboard.
+
+## Example configuration
+
+A typical general configuration for a team project:
+
+```json title="supabase/config.json"
+{
+  "$schema": "https://supabase.com/schema/config.json",
+  "project_id": "acme-app",
+  "workflow_profile": "staged",
+  "schema_management": "declarative",
+  "config_source": "code"
+}
+```
+
+## Next steps
+
+<Cards>
+  <Card title="API Configuration" href="/docs/config/api" />
+  <Card title="Auth Configuration" href="/docs/config/auth" />
+  <Card title="Workflow Profiles" href="/docs/cli/workflow-profiles" />
+</Cards>

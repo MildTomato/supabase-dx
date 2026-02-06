@@ -1,0 +1,13 @@
+{
+  "title": "Configuration",
+  "root": true,
+  "pages": [
+    "index",
+    "---Guides---",
+    "general",
+    "api",
+    "auth",
+    "---Reference---",
+    "...reference"
+  ]
+}

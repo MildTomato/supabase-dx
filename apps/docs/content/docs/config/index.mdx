@@ -1,0 +1,93 @@
+---
+title: Configuration
+description: Configure your Supabase project with config.json
+---
+
+The `config.json` file in your `supabase/` directory controls how your Supabase
+project behaves. Define API settings, authentication rules, storage policies,
+and more in one place.
+
+## Overview
+
+When you run `supa init`, the CLI creates a `supabase/config.json` file with
+sensible defaults. This file serves as the source of truth for your project
+configuration and can be version controlled alongside your code.
+
+```json title="supabase/config.json"
+{
+  "$schema": "https://supabase.com/schema/config.json",
+  "project_id": "my-project",
+  "workflow_profile": "solo",
+  "api": {
+    "schemas": ["public", "storage"],
+    "max_rows": 1000
+  },
+  "auth": {
+    "site_url": "http://localhost:3000",
+    "enable_signup": true
+  }
+}
+```
+
+## Configuration flow
+
+The CLI supports two configuration management modes:
+
+- **Code-first** (`config_source: "code"`) — Your local `config.json` is the
+  source of truth. Use `supa project push` to apply changes to your remote
+  project.
+- **Remote-first** (`config_source: "remote"`) — The Supabase dashboard is the
+  source of truth. Use `supa project pull` to sync changes to your local config.
+
+## Config sections
+
+Your configuration is organized into these sections:
+
+| Section | Description |
+|---------|-------------|
+| [General](/docs/config/general) | Project identity, workflow profile, schema management |
+| [API](/docs/config/api) | PostgREST settings, exposed schemas, row limits |
+| [Auth](/docs/config/auth) | Authentication providers, JWT settings, email templates |
+| [Database](/docs/config/reference/db) | Connection pooling, extensions, replication |
+| [Storage](/docs/config/reference/storage) | File storage limits and policies |
+| [Edge Functions](/docs/config/reference/functions) | Function runtime settings |
+| [Realtime](/docs/config/reference/realtime) | WebSocket and broadcast settings |
+
+## Syncing configuration
+
+Push local config changes to your remote project:
+
+```bash
+supa project push --config-only
+```
+
+Pull remote config to your local file:
+
+```bash
+supa project pull
+```
+
+The CLI shows a diff of changes before applying them, so you can review what
+will change.
+
+## JSON schema support
+
+Add the `$schema` property to enable autocomplete and validation in your editor:
+
+```json
+{
+  "$schema": "https://supabase.com/schema/config.json"
+}
+```
+
+Most editors (VS Code, WebStorm, Neovim with LSP) provide inline documentation
+and error highlighting when the schema is configured.
+
+## Next steps
+
+<Cards>
+  <Card title="General Settings" href="/docs/config/general" />
+  <Card title="API Configuration" href="/docs/config/api" />
+  <Card title="Auth Configuration" href="/docs/config/auth" />
+  <Card title="Full Reference" href="/docs/config/reference" />
+</Cards>

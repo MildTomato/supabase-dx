@@ -8,7 +8,7 @@ import SelectInput from "ink-select-input";
 import TextInput from "ink-text-input";
 import { Spinner, Status } from "./Spinner.js";
 import { createClient, type Organization, type Project } from "../lib/api.js";
-import { getAccessToken } from "../lib/config.js";
+import { getAccessTokenAsync } from "../lib/config.js";
 import { REGIONS, type Region } from "../lib/constants.js";
 
 // Generic choice picker
@@ -50,7 +50,7 @@ export function OrgPicker({ onSelect, onError }: OrgPickerProps) {
   }, []);
 
   async function loadOrgs() {
-    const token = getAccessToken();
+    const token = await getAccessTokenAsync();
     if (!token) {
       const msg = "Not authenticated";
       setError(msg);
@@ -155,7 +155,7 @@ export function ProjectPicker({
   }, [orgSlug]);
 
   async function loadProjects() {
-    const token = getAccessToken();
+    const token = await getAccessTokenAsync();
     if (!token) {
       const msg = "Not authenticated";
       setError(msg);

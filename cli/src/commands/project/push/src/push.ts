@@ -14,7 +14,7 @@ import {
 import { dirname, join } from "node:path";
 import { createClient } from "@/lib/api.js";
 import {
-  getAccessToken,
+  requireAuth,
   loadProjectConfig,
   getProfileOrAuto,
   getProjectRef,
@@ -253,16 +253,7 @@ export async function pushCommand(options: PushOptions) {
   const currentBranch = getCurrentBranch(cwd) || undefined;
   const profile = getProfileOrAuto(config, options.profile, currentBranch);
   const projectRef = getProjectRef(config, profile);
-  const token = getAccessToken();
-
-  if (!token) {
-    if (options.json) {
-      console.log(JSON.stringify({ status: "error", message: "Not logged in" }));
-    } else {
-      console.error(chalk.red("Not logged in. Set SUPABASE_ACCESS_TOKEN."));
-    }
-    process.exit(1);
-  }
+  const token = await requireAuth({ json: options.json });
 
   if (!projectRef) {
     if (options.json) {

@@ -1,0 +1,78 @@
+---
+title: Storage configuration
+description: Configure file storage settings
+---
+
+The `storage` section configures Supabase Storage for file uploads and
+management.
+
+## Basic configuration
+
+```json title="supabase/config.json"
+{
+  "storage": {
+    "enabled": true,
+    "file_size_limit": "50MiB"
+  }
+}
+```
+
+## File size limits
+
+Set the maximum file size for uploads:
+
+```json
+{
+  "storage": {
+    "file_size_limit": "50MiB"
+  }
+}
+```
+
+Supported units: `B`, `KiB`, `MiB`, `GiB`. The limit applies globally; use
+bucket policies for per-bucket limits.
+
+## Image transformations
+
+Enable on-the-fly image transformations:
+
+```json
+{
+  "storage": {
+    "image_transformation": {
+      "enabled": true
+    }
+  }
+}
+```
+
+When enabled, you can request transformed images via URL parameters:
+
+```
+/storage/v1/render/image/public/bucket/image.png?width=200&height=200
+```
+
+## S3 protocol
+
+Enable S3-compatible API access:
+
+```json
+{
+  "storage": {
+    "s3_protocol": {
+      "enabled": true
+    }
+  }
+}
+```
+
+This allows using AWS S3 SDKs to interact with Supabase Storage.
+
+## Reference
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `enabled` | boolean | `true` | Enable storage service |
+| `file_size_limit` | string | `50MiB` | Maximum upload size |
+| `image_transformation.enabled` | boolean | `true` | Enable image transforms |
+| `s3_protocol.enabled` | boolean | `true` | Enable S3 API |

@@ -1,0 +1,54 @@
+---
+title: Realtime configuration
+description: Configure WebSocket and broadcast settings
+---
+
+The `realtime` section configures Supabase Realtime for WebSocket connections,
+database change subscriptions, and broadcast messaging.
+
+## Basic configuration
+
+```json title="supabase/config.json"
+{
+  "realtime": {
+    "enabled": true,
+    "ip_version": 4
+  }
+}
+```
+
+## IP version
+
+Configure which IP version to use for connections:
+
+```json
+{
+  "realtime": {
+    "ip_version": 4
+  }
+}
+```
+
+Use `4` for IPv4 or `6` for IPv6. Most deployments use IPv4.
+
+## Tenant configuration
+
+Configure tenant-specific settings for multi-tenant deployments:
+
+```json
+{
+  "realtime": {
+    "tenant_id": "my-tenant",
+    "secret": "env(REALTIME_SECRET)"
+  }
+}
+```
+
+## Reference
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `enabled` | boolean | `true` | Enable Realtime service |
+| `ip_version` | number | `4` | IP version (4 or 6) |
+| `tenant_id` | string | — | Tenant identifier |
+| `secret` | string | — | Tenant secret |

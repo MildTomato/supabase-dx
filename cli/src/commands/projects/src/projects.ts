@@ -5,7 +5,7 @@
 import * as p from "@clack/prompts";
 import chalk from "chalk";
 import { createClient, type Project } from "@/lib/api.js";
-import { getAccessTokenAsync } from "@/lib/config.js";
+import { requireAuth } from "@/lib/config.js";
 import { formatProjectStatus, REGIONS, type Region } from "@/lib/constants.js";
 import { createProject as createProjectOp } from "@/lib/operations.js";
 import { searchSelect } from "@/components/search-select.js";
@@ -185,17 +185,7 @@ async function createProject(token: string, options: ProjectsOptions) {
 }
 
 export async function projectsCommand(options: ProjectsOptions) {
-  const token = await getAccessTokenAsync();
-
-  if (!token) {
-    if (options.json) {
-      console.log(JSON.stringify({ status: "error", message: "Not logged in" }));
-    } else {
-      console.error("Not logged in. Run `supa login` or set SUPABASE_ACCESS_TOKEN environment variable.");
-    }
-    process.exitCode = 1;
-    return;
-  }
+  const token = await requireAuth({ json: options.json });
 
   // JSON mode for list
   if (options.json && options.action === "list") {

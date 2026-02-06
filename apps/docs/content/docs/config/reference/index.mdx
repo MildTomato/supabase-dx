@@ -1,0 +1,71 @@
+---
+title: Config reference
+description: Complete configuration schema reference
+---
+
+This reference documents all available configuration options in `config.json`.
+
+## Schema
+
+The configuration file uses JSON Schema for validation. Add the schema URL
+to enable editor support:
+
+```json
+{
+  "$schema": "https://supabase.com/schema/config.json"
+}
+```
+
+## Sections
+
+| Section | Description |
+|---------|-------------|
+| [General](/docs/config/general) | Project identity, workflow, schema management |
+| [API](/docs/config/api) | PostgREST and REST API settings |
+| [Auth](/docs/config/auth) | Authentication and authorization |
+| [Database](/docs/config/reference/db) | PostgreSQL and connection pooling |
+| [Storage](/docs/config/reference/storage) | File storage configuration |
+| [Edge Functions](/docs/config/reference/functions) | Deno runtime settings |
+| [Realtime](/docs/config/reference/realtime) | WebSocket and broadcast |
+| [Studio](/docs/config/reference/studio) | Dashboard settings |
+| [Analytics](/docs/config/reference/analytics) | Logflare integration |
+
+## Environment variables
+
+Use the `env()` syntax to reference environment variables in your config:
+
+```json
+{
+  "auth": {
+    "external": {
+      "google": {
+        "client_id": "env(GOOGLE_CLIENT_ID)",
+        "secret": "env(GOOGLE_CLIENT_SECRET)"
+      }
+    }
+  }
+}
+```
+
+The CLI loads environment variables from these files (in order of precedence):
+
+1. Shell environment
+2. `.env.local`
+3. `supabase/.env`
+4. `.env`
+
+## Type definitions
+
+TypeScript types are available for the configuration schema:
+
+```typescript
+import type { ProjectConfig } from '@supabase/cli';
+
+const config: ProjectConfig = {
+  project_id: 'my-project',
+  workflow_profile: 'solo',
+  api: {
+    max_rows: 1000
+  }
+};
+```

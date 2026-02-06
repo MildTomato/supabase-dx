@@ -14,7 +14,7 @@ import {
 import { spawn } from "node:child_process";
 import { join } from "node:path";
 import { createClient } from "@/lib/api.js";
-import { getAccessTokenAsync, loadProjectConfig, getWorkflowProfile } from "@/lib/config.js";
+import { requireAuth, loadProjectConfig, getWorkflowProfile } from "@/lib/config.js";
 import { type Region, REGIONS } from "@/lib/constants.js";
 import { createProject as createProjectOp } from "@/lib/operations.js";
 import { buildApiConfigFromRemote, buildAuthConfigFromRemote } from "@/lib/sync.js";
@@ -103,15 +103,7 @@ export async function initCommand(options: InitOptions): Promise<void> {
     return;
   }
 
-  const token = await getAccessTokenAsync();
-  if (!token) {
-    if (options.json) {
-      console.log(JSON.stringify({ status: "error", message: "Not authenticated" }));
-    } else {
-      console.log("Not authenticated. Run `supa login` or set SUPABASE_ACCESS_TOKEN environment variable.");
-    }
-    return;
-  }
+  const token = await requireAuth({ json: options.json });
 
   let project: InitResult;
 

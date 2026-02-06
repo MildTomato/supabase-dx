@@ -5,7 +5,7 @@
 import * as p from "@clack/prompts";
 import chalk from "chalk";
 import { createClient } from "@/lib/api.js";
-import { getAccessTokenAsync } from "@/lib/config.js";
+import { requireAuth } from "@/lib/config.js";
 import { searchSelect } from "@/components/search-select.js";
 import { createSpinner } from "@/lib/spinner.js";
 
@@ -14,20 +14,7 @@ interface OrgsOptions {
 }
 
 export async function orgsCommand(options: OrgsOptions): Promise<void> {
-  const token = await getAccessTokenAsync();
-  if (!token) {
-    if (options.json) {
-      console.log(
-        JSON.stringify({ status: "error", message: "Not logged in" }),
-      );
-    } else {
-      console.error(
-        "Not logged in. Run `supa login` or set SUPABASE_ACCESS_TOKEN environment variable.",
-      );
-    }
-    process.exitCode = 1;
-    return;
-  }
+  const token = await requireAuth({ json: options.json });
 
   const client = createClient(token);
 

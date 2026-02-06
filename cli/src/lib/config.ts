@@ -116,8 +116,38 @@ export async function getAccessTokenAsync(): Promise<string | undefined> {
 }
 
 /**
+ * Auth check error - thrown when auth is required but missing
+ */
+export class AuthRequiredError extends Error {
+  constructor() {
+    super("Not authenticated");
+    this.name = "AuthRequiredError";
+  }
+}
+
+/**
+ * Require authentication - get token or exit with error
+ * Use this in commands that require auth to avoid duplicating error handling
+ */
+export async function requireAuth(options?: { json?: boolean }): Promise<string> {
+  const token = await getAccessTokenAsync();
+  if (token) return token;
+
+  const message = "Not logged in. Run `supa login` or set SUPABASE_ACCESS_TOKEN.";
+  if (options?.json) {
+    console.log(JSON.stringify({ status: "error", message: "Not logged in" }));
+  } else {
+    console.error(message);
+  }
+  process.exitCode = 1;
+  throw new AuthRequiredError();
+}
+
+/**
+ * @deprecated Use getAccessTokenAsync() or requireAuth() instead.
+ * This sync version skips keychain lookup.
+ *
  * Get access token (sync version - only checks env and file)
- * Use getAccessTokenAsync() for full keyring support
  *
  * Priority:
  * 1. SUPABASE_ACCESS_TOKEN env var

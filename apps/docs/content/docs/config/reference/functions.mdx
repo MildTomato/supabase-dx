@@ -1,0 +1,78 @@
+---
+title: Edge Functions configuration
+description: Configure Deno runtime for Edge Functions
+---
+
+The `functions` and `edge_runtime` sections configure Supabase Edge Functions.
+
+## Basic configuration
+
+```json title="supabase/config.json"
+{
+  "edge_runtime": {
+    "enabled": true,
+    "policy": "oneshot"
+  }
+}
+```
+
+## Runtime policy
+
+The `policy` setting controls how function instances are managed:
+
+```json
+{
+  "edge_runtime": {
+    "policy": "oneshot"
+  }
+}
+```
+
+| Policy | Description |
+|--------|-------------|
+| `oneshot` | New instance per request. Better isolation, higher latency. |
+| `per_worker` | Reuse instances across requests. Lower latency, shared state. |
+
+## Inspector
+
+Enable the Deno inspector for debugging:
+
+```json
+{
+  "edge_runtime": {
+    "inspector_port": 8083
+  }
+}
+```
+
+Connect Chrome DevTools to `chrome://inspect` to debug functions locally.
+
+## Function-specific settings
+
+Configure individual functions in the `functions` section:
+
+```json
+{
+  "functions": {
+    "my-function": {
+      "verify_jwt": true,
+      "import_map": "./import_map.json"
+    }
+  }
+}
+```
+
+| Property | Description |
+|----------|-------------|
+| `verify_jwt` | Require valid JWT for invocation |
+| `import_map` | Path to Deno import map |
+
+## Reference
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `edge_runtime.enabled` | boolean | `true` | Enable Edge Functions |
+| `edge_runtime.policy` | string | `oneshot` | Instance lifecycle policy |
+| `edge_runtime.inspector_port` | number | `8083` | Debugger port |
+| `functions.<name>.verify_jwt` | boolean | `true` | Require authentication |
+| `functions.<name>.import_map` | string | — | Import map path |

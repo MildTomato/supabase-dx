@@ -1,0 +1,146 @@
+---
+title: API configuration
+description: Configure PostgREST and API behavior
+---
+
+The `api` section configures PostgREST, which powers your project's auto-generated
+REST API. Control which schemas are exposed, set row limits, and configure TLS.
+
+## Basic configuration
+
+```json title="supabase/config.json"
+{
+  "api": {
+    "enabled": true,
+    "schemas": ["public", "storage"],
+    "max_rows": 1000
+  }
+}
+```
+
+## Exposed schemas
+
+The `schemas` array controls which database schemas are accessible through the
+API. Tables, views, and functions in these schemas get REST endpoints.
+
+```json
+{
+  "api": {
+    "schemas": ["public", "storage", "graphql_public"]
+  }
+}
+```
+
+The `public` and `storage` schemas are always included. Add custom schemas to
+expose additional tables:
+
+```json
+{
+  "api": {
+    "schemas": ["public", "storage", "tenant_a", "tenant_b"]
+  }
+}
+```
+
+## Row limits
+
+The `max_rows` setting limits the number of rows returned from a single request.
+This protects against accidental or malicious queries that return excessive data.
+
+```json
+{
+  "api": {
+    "max_rows": 1000
+  }
+}
+```
+
+Clients can still paginate through larger result sets using `range` headers or
+the `limit` and `offset` query parameters.
+
+## Search path
+
+The `extra_search_path` setting adds schemas to the PostgreSQL search path for
+every request. This affects how unqualified table names are resolved.
+
+```json
+{
+  "api": {
+    "extra_search_path": ["public", "extensions"]
+  }
+}
+```
+
+The `public` schema is always included. Add `extensions` if you use PostgreSQL
+extensions and want to call their functions without schema qualification.
+
+## Port configuration
+
+Configure the port for local development:
+
+```json
+{
+  "api": {
+    "port": 54321
+  }
+}
+```
+
+The default port is `54321`. This only affects local development; hosted
+projects use Supabase's standard ports.
+
+## TLS configuration
+
+Enable TLS for local development if your app requires HTTPS:
+
+```json
+{
+  "api": {
+    "tls": {
+      "enabled": true
+    }
+  }
+}
+```
+
+When enabled, the local API server uses a self-signed certificate. You may need
+to configure your client to trust it during development.
+
+## Full example
+
+A complete API configuration for a multi-tenant application:
+
+```json title="supabase/config.json"
+{
+  "api": {
+    "enabled": true,
+    "port": 54321,
+    "schemas": ["public", "storage", "data_api"],
+    "extra_search_path": ["public", "extensions"],
+    "max_rows": 500,
+    "tls": {
+      "enabled": false
+    }
+  }
+}
+```
+
+## Reference
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `enabled` | boolean | `true` | Enable the PostgREST service |
+| `port` | number | `54321` | Port for the API URL |
+| `schemas` | string[] | `["public", "storage", "graphql_public"]` | Schemas to expose |
+| `extra_search_path` | string[] | `["public", "extensions"]` | Additional schemas in search path |
+| `max_rows` | number | `1000` | Maximum rows returned per request |
+| `tls.enabled` | boolean | `false` | Enable TLS for local development |
+| `external_url` | string | `http://127.0.0.1:54321` | External URL for the API server |
+
+## Next steps
+
+<Cards>
+  <Card title="Auth Configuration" href="/docs/config/auth" />
+  <Card title="Database Configuration" href="/docs/config/reference/db" />
+  <Card title="Full Reference" href="/docs/config/reference" />
+</Cards>

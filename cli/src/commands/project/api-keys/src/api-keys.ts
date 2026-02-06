@@ -6,7 +6,7 @@ import * as p from "@clack/prompts";
 import chalk from "chalk";
 import { createClient, type ApiKey } from "@/lib/api.js";
 import {
-  getAccessToken,
+  requireAuth,
   loadProjectConfig,
   getProfileOrAuto,
   getProjectRef,
@@ -67,17 +67,7 @@ function printTable(keys: ApiKey[], reveal: boolean) {
 }
 
 export async function apiKeysCommand(options: ApiKeysOptions): Promise<void> {
-  const token = getAccessToken();
-
-  if (!token) {
-    if (options.json) {
-      console.log(JSON.stringify({ status: "error", message: "Not logged in" }));
-    } else {
-      console.error(chalk.red("Not logged in. Set SUPABASE_ACCESS_TOKEN."));
-    }
-    process.exitCode = 1;
-    return;
-  }
+  const token = await requireAuth({ json: options.json });
 
   const cwd = process.cwd();
   const config = loadProjectConfig(cwd);

@@ -1,0 +1,69 @@
+---
+title: Studio configuration
+description: Configure the Supabase Studio dashboard
+---
+
+The `studio` section configures Supabase Studio, the web-based dashboard for
+managing your project.
+
+## Basic configuration
+
+```json title="supabase/config.json"
+{
+  "studio": {
+    "enabled": true,
+    "port": 54323
+  }
+}
+```
+
+## Port configuration
+
+Configure the local Studio port:
+
+```json
+{
+  "studio": {
+    "port": 54323
+  }
+}
+```
+
+Access Studio at `http://localhost:54323` during local development.
+
+## API URL
+
+Configure the API URL that Studio uses:
+
+```json
+{
+  "studio": {
+    "api_url": "http://127.0.0.1:54321"
+  }
+}
+```
+
+This is useful when running the API on a different host or port.
+
+## OpenAI integration
+
+Enable AI features in Studio with an OpenAI API key:
+
+```json
+{
+  "studio": {
+    "openai_api_key": "env(OPENAI_API_KEY)"
+  }
+}
+```
+
+This enables features like natural language to SQL conversion.
+
+## Reference
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `enabled` | boolean | `true` | Enable Studio |
+| `port` | number | `54323` | Studio port |
+| `api_url` | string | `http://127.0.0.1:54321` | API endpoint |
+| `openai_api_key` | string | — | OpenAI API key for AI features |

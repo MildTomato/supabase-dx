@@ -1,0 +1,13 @@
+{
+  "title": "Reference",
+  "defaultOpen": true,
+  "pages": [
+    "index",
+    "db",
+    "storage",
+    "functions",
+    "realtime",
+    "studio",
+    "analytics"
+  ]
+}

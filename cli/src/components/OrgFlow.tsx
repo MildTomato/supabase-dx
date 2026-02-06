@@ -8,7 +8,7 @@ import { Box } from 'ink';
 import { Spinner, Status } from './Spinner.js';
 import { OrgPicker, NameInput, CreateOrSelectChoice } from './Pickers.js';
 import { createClient, type Organization } from '../lib/api.js';
-import { getAccessToken } from '../lib/config.js';
+import { getAccessTokenAsync } from '../lib/config.js';
 import { createOrganization as createOrgOp } from '../lib/operations.js';
 
 type OrgFlowStep = 'loading' | 'choice' | 'select' | 'name' | 'creating';
@@ -28,7 +28,7 @@ export function OrgFlow({ onComplete, onError }: OrgFlowProps) {
   }, []);
 
   async function loadOrgs() {
-    const token = getAccessToken();
+    const token = await getAccessTokenAsync();
     if (!token) {
       onError('Not authenticated');
       return;
@@ -45,7 +45,7 @@ export function OrgFlow({ onComplete, onError }: OrgFlowProps) {
   }
 
   async function createOrg(name: string) {
-    const token = getAccessToken();
+    const token = await getAccessTokenAsync();
     if (!token) {
       onError('Not authenticated');
       return;

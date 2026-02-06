@@ -10,7 +10,7 @@ import { writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { join, dirname, relative, basename } from "node:path";
 import { createClient } from "@/lib/api.js";
 import {
-  getAccessTokenAsync,
+  requireAuth,
   loadProjectConfig,
   getProfileOrAuto,
   getProjectRef,
@@ -126,19 +126,7 @@ export async function devCommand(options: DevOptions): Promise<void> {
   }
 
   // Get token
-  const token = await getAccessTokenAsync();
-  if (!token) {
-    if (options.json) {
-      console.log(
-        JSON.stringify({ status: "error", message: "Not authenticated" }),
-      );
-    } else {
-      console.error(`\n${C.error}Error:${C.reset} Not authenticated`);
-      console.error(`  Run ${C.value}supa login${C.reset} or set SUPABASE_ACCESS_TOKEN environment variable\n`);
-    }
-    process.exitCode = 1;
-    return;
-  }
+  const token = await requireAuth({ json: options.json });
 
   // Check for db password
   const dbPassword = process.env.SUPABASE_DB_PASSWORD;

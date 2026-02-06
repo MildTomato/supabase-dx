@@ -1,0 +1,72 @@
+---
+title: Database configuration
+description: Configure PostgreSQL and connection pooling
+---
+
+The `db` section configures PostgreSQL settings including connection pooling,
+extensions, and replication.
+
+## Basic configuration
+
+```json title="supabase/config.json"
+{
+  "db": {
+    "port": 54322,
+    "major_version": 15
+  }
+}
+```
+
+## Connection pooling
+
+Configure PgBouncer for connection pooling:
+
+```json
+{
+  "db": {
+    "pooler": {
+      "enabled": true,
+      "port": 6543,
+      "pool_mode": "transaction",
+      "default_pool_size": 20,
+      "max_client_conn": 100
+    }
+  }
+}
+```
+
+| Property | Description |
+|----------|-------------|
+| `enabled` | Enable the connection pooler |
+| `port` | Port for pooled connections |
+| `pool_mode` | Pooling mode: `transaction`, `session`, or `statement` |
+| `default_pool_size` | Connections per user/database pair |
+| `max_client_conn` | Maximum client connections |
+
+## Port configuration
+
+Configure ports for local development:
+
+```json
+{
+  "db": {
+    "port": 54322,
+    "shadow_port": 54320
+  }
+}
+```
+
+The `shadow_port` is used for diff calculations during schema migrations.
+
+## Reference
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `port` | number | `54322` | PostgreSQL port |
+| `shadow_port` | number | `54320` | Shadow database port |
+| `major_version` | number | `15` | PostgreSQL major version |
+| `pooler.enabled` | boolean | `true` | Enable connection pooling |
+| `pooler.port` | number | `6543` | Pooler port |
+| `pooler.pool_mode` | string | `transaction` | Pooling mode |
+| `pooler.default_pool_size` | number | `20` | Pool size per user/db |
+| `pooler.max_client_conn` | number | `100` | Max client connections |

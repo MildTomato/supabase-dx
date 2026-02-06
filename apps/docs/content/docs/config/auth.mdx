@@ -1,0 +1,288 @@
+---
+title: Auth configuration
+description: Configure authentication providers and security settings
+---
+
+The `auth` section configures GoTrue, Supabase's authentication service.
+Control sign-up behavior, JWT settings, OAuth providers, MFA, and email
+templates.
+
+## Basic configuration
+
+```json title="supabase/config.json"
+{
+  "auth": {
+    "enabled": true,
+    "site_url": "http://localhost:3000",
+    "enable_signup": true
+  }
+}
+```
+
+## Site URL and redirects
+
+The `site_url` is the base URL of your application. It's used for email links
+and as a default redirect destination.
+
+```json
+{
+  "auth": {
+    "site_url": "https://myapp.com",
+    "additional_redirect_urls": [
+      "https://myapp.com/auth/callback",
+      "http://localhost:3000/auth/callback"
+    ]
+  }
+}
+```
+
+The `additional_redirect_urls` array lists exact URLs that OAuth providers can
+redirect to after authentication. Include both production and development URLs.
+
+## JWT settings
+
+Configure how long access tokens remain valid:
+
+```json
+{
+  "auth": {
+    "jwt_expiry": 3600,
+    "enable_refresh_token_rotation": true,
+    "refresh_token_reuse_interval": 10
+  }
+}
+```
+
+| Property | Description |
+|----------|-------------|
+| `jwt_expiry` | Token lifetime in seconds (default: 3600, max: 604800) |
+| `enable_refresh_token_rotation` | Issue new refresh tokens on use |
+| `refresh_token_reuse_interval` | Grace period for reusing old refresh tokens (seconds) |
+
+## Sign-up settings
+
+Control how users can create accounts:
+
+```json
+{
+  "auth": {
+    "enable_signup": true,
+    "enable_anonymous_sign_ins": false,
+    "enable_manual_linking": false
+  }
+}
+```
+
+| Property | Description |
+|----------|-------------|
+| `enable_signup` | Allow new user registrations |
+| `enable_anonymous_sign_ins` | Allow anonymous sessions that can be converted later |
+| `enable_manual_linking` | Allow linking multiple auth methods to one account |
+
+## Email configuration
+
+Configure email authentication and SMTP settings:
+
+```json
+{
+  "auth": {
+    "email": {
+      "enable_signup": true,
+      "double_confirm_changes": true,
+      "enable_confirmations": true,
+      "max_frequency": "60s",
+      "otp_length": 6,
+      "otp_expiry": 3600
+    }
+  }
+}
+```
+
+### SMTP settings
+
+For production, configure your own SMTP server:
+
+```json
+{
+  "auth": {
+    "email": {
+      "smtp": {
+        "enabled": true,
+        "host": "smtp.sendgrid.net",
+        "port": 587,
+        "user": "apikey",
+        "pass": "env(SMTP_PASS)",
+        "admin_email": "noreply@myapp.com",
+        "sender_name": "My App"
+      }
+    }
+  }
+}
+```
+
+Use `env(VARIABLE_NAME)` syntax to reference environment variables for secrets.
+
+## External providers
+
+Configure OAuth providers like Google, GitHub, and Apple:
+
+```json
+{
+  "auth": {
+    "external": {
+      "google": {
+        "enabled": true,
+        "client_id": "env(GOOGLE_CLIENT_ID)",
+        "secret": "env(GOOGLE_CLIENT_SECRET)"
+      },
+      "github": {
+        "enabled": true,
+        "client_id": "env(GITHUB_CLIENT_ID)",
+        "secret": "env(GITHUB_CLIENT_SECRET)"
+      }
+    }
+  }
+}
+```
+
+Each provider supports these properties:
+
+| Property | Description |
+|----------|-------------|
+| `enabled` | Enable this provider |
+| `client_id` | OAuth client ID |
+| `secret` | OAuth client secret |
+| `redirect_uri` | Custom redirect URI (optional) |
+| `url` | Custom OAuth URL for self-hosted providers |
+| `skip_nonce_check` | Skip nonce validation (not recommended) |
+
+## Multi-factor authentication
+
+Enable MFA with TOTP (authenticator apps) or phone-based verification:
+
+```json
+{
+  "auth": {
+    "mfa": {
+      "max_enrolled_factors": 10,
+      "totp": {
+        "enroll_enabled": true,
+        "verify_enabled": true
+      },
+      "phone": {
+        "enroll_enabled": true,
+        "verify_enabled": true,
+        "otp_length": 6,
+        "max_frequency": "60s"
+      }
+    }
+  }
+}
+```
+
+## Auth hooks
+
+Auth hooks let you run custom logic during authentication events:
+
+```json
+{
+  "auth": {
+    "hook": {
+      "custom_access_token": {
+        "enabled": true,
+        "uri": "pg-functions://postgres/public/custom_access_token"
+      },
+      "mfa_verification_attempt": {
+        "enabled": true,
+        "uri": "pg-functions://postgres/public/verify_mfa"
+      }
+    }
+  }
+}
+```
+
+Available hooks:
+
+| Hook | Description |
+|------|-------------|
+| `custom_access_token` | Modify JWT claims before token is issued |
+| `mfa_verification_attempt` | Custom logic for MFA verification |
+| `password_verification_attempt` | Custom password validation |
+| `send_sms` | Custom SMS delivery |
+| `send_email` | Custom email delivery |
+
+## Session settings
+
+Control session behavior and limits:
+
+```json
+{
+  "auth": {
+    "sessions": {
+      "timebox": 86400,
+      "inactivity_timeout": 3600,
+      "single_per_user": false
+    }
+  }
+}
+```
+
+| Property | Description |
+|----------|-------------|
+| `timebox` | Maximum session duration in seconds |
+| `inactivity_timeout` | Logout after inactivity (seconds) |
+| `single_per_user` | Allow only one active session per user |
+
+## Full example
+
+A production-ready auth configuration:
+
+```json title="supabase/config.json"
+{
+  "auth": {
+    "enabled": true,
+    "site_url": "https://myapp.com",
+    "additional_redirect_urls": [
+      "https://myapp.com/auth/callback",
+      "myapp://auth/callback"
+    ],
+    "jwt_expiry": 3600,
+    "enable_refresh_token_rotation": true,
+    "enable_signup": true,
+    "enable_anonymous_sign_ins": false,
+    "email": {
+      "enable_signup": true,
+      "enable_confirmations": true,
+      "smtp": {
+        "enabled": true,
+        "host": "smtp.sendgrid.net",
+        "port": 587,
+        "user": "apikey",
+        "pass": "env(SMTP_PASS)",
+        "admin_email": "noreply@myapp.com"
+      }
+    },
+    "external": {
+      "google": {
+        "enabled": true,
+        "client_id": "env(GOOGLE_CLIENT_ID)",
+        "secret": "env(GOOGLE_CLIENT_SECRET)"
+      }
+    },
+    "mfa": {
+      "totp": {
+        "enroll_enabled": true,
+        "verify_enabled": true
+      }
+    }
+  }
+}
+```
+
+## Next steps
+
+<Cards>
+  <Card title="General Settings" href="/docs/config/general" />
+  <Card title="API Configuration" href="/docs/config/api" />
+  <Card title="Full Reference" href="/docs/config/reference" />
+</Cards>

@@ -19,3 +19,6 @@
 [submodule "external/supabase-cli"]
 	path = external/supabase-cli
 	url = https://github.com/supabase/cli.git
+[submodule "external/vercel"]
+	path = external/vercel
+	url = https://github.com/vercel/vercel.git

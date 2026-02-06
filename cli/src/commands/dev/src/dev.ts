@@ -10,7 +10,7 @@ import { writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { join, dirname, relative, basename } from "node:path";
 import { createClient } from "@/lib/api.js";
 import {
-  getAccessToken,
+  getAccessTokenAsync,
   loadProjectConfig,
   getProfileOrAuto,
   getProjectRef,
@@ -126,7 +126,7 @@ export async function devCommand(options: DevOptions): Promise<void> {
   }
 
   // Get token
-  const token = getAccessToken();
+  const token = await getAccessTokenAsync();
   if (!token) {
     if (options.json) {
       console.log(
@@ -134,7 +134,7 @@ export async function devCommand(options: DevOptions): Promise<void> {
       );
     } else {
       console.error(`\n${C.error}Error:${C.reset} Not authenticated`);
-      console.error(`  Set SUPABASE_ACCESS_TOKEN environment variable\n`);
+      console.error(`  Run ${C.value}supa login${C.reset} or set SUPABASE_ACCESS_TOKEN environment variable\n`);
     }
     process.exitCode = 1;
     return;

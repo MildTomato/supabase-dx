@@ -5,7 +5,7 @@
 import * as p from "@clack/prompts";
 import chalk from "chalk";
 import { createClient } from "@/lib/api.js";
-import { getAccessToken } from "@/lib/config.js";
+import { getAccessTokenAsync } from "@/lib/config.js";
 import { searchSelect } from "@/components/search-select.js";
 import { createSpinner } from "@/lib/spinner.js";
 
@@ -14,7 +14,7 @@ interface OrgsOptions {
 }
 
 export async function orgsCommand(options: OrgsOptions): Promise<void> {
-  const token = getAccessToken();
+  const token = await getAccessTokenAsync();
   if (!token) {
     if (options.json) {
       console.log(
@@ -22,7 +22,7 @@ export async function orgsCommand(options: OrgsOptions): Promise<void> {
       );
     } else {
       console.error(
-        "Not logged in. Set SUPABASE_ACCESS_TOKEN environment variable.",
+        "Not logged in. Run `supa login` or set SUPABASE_ACCESS_TOKEN environment variable.",
       );
     }
     process.exitCode = 1;

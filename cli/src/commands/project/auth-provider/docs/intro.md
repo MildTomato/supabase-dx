@@ -1,5 +1,3 @@
-# Auth Provider Commands
-
 Manage OAuth providers for your Supabase project directly from the CLI.
 
 ## Overview

@@ -22,7 +22,10 @@ const COMMANDS_DIR = join(process.cwd(), "src", "commands");
 /**
  * Get the URL path for a command
  */
-function getCommandPath(command: Command, parent?: Command): string {
+function getCommandPath(command: Command, parent?: Command, parentPath?: string): string {
+  if (parentPath) {
+    return `${parentPath}/${command.name}`;
+  }
   return parent ? `${parent.name}/${command.name}` : command.name;
 }
 
@@ -70,9 +73,10 @@ function getTypeString(type: CommandOption["type"]): string {
 
 /**
  * Convert a command spec to MDX content
+ * @param depth - Depth level (0 = top-level command, 1 = direct subcommand, 2+ = nested)
  */
-function commandToMdx(command: Command, parent?: Command): string {
-  const fullName = parent ? `${parent.name} ${command.name}` : command.name;
+function commandToMdx(command: Command, parent?: Command, parentPath?: string, depth: number = 0): string {
+  const fullName = parentPath ? `${parentPath.replace(/\//g, ' ')} ${command.name}` : parent ? `${parent.name} ${command.name}` : command.name;
   const title = `supa ${fullName}`;
 
   const lines: string[] = [
@@ -107,7 +111,12 @@ function commandToMdx(command: Command, parent?: Command): string {
     lines.push("| Argument | Required | Description |");
     lines.push("|----------|----------|-------------|");
     for (const arg of command.arguments) {
-      const desc = arg.multiple ? "(can be repeated)" : "";
+      let desc = arg.description || "";
+      if (arg.multiple && desc) {
+        desc += " (can be repeated)";
+      } else if (arg.multiple) {
+        desc = "(can be repeated)";
+      }
       lines.push(`| \`${arg.name}\` | ${arg.required ? "Yes" : "No"} | ${desc} |`);
     }
     lines.push("");
@@ -117,14 +126,96 @@ function commandToMdx(command: Command, parent?: Command): string {
   if (command.subcommands && command.subcommands.length > 0) {
     const visibleSubs = command.subcommands.filter((s) => !s.hidden);
     if (visibleSubs.length > 0) {
-      lines.push("## Subcommands", "");
-      lines.push("| Command | Description |");
-      lines.push("|---------|-------------|");
-      for (const sub of visibleSubs) {
-        const subPath = getCommandPath(sub, command);
-        lines.push(`| [\`${sub.name}\`](/docs/cli/reference/${subPath}) | ${sub.description} |`);
+      // If we're at depth 1+, inline subcommands as sections instead of linking to separate pages
+      const shouldInline = depth >= 1;
+
+      if (shouldInline) {
+        // Inline documentation for each subcommand
+        lines.push("## Commands", "");
+        lines.push("The following commands are available:", "");
+
+        // Add simple list for navigation
+        for (const sub of visibleSubs) {
+          lines.push(`- [\`${sub.name}\`](#${sub.name}) - ${sub.description}`);
+        }
+        lines.push("", "---", "");
+
+        // Full documentation for each subcommand
+        for (let i = 0; i < visibleSubs.length; i++) {
+          const sub = visibleSubs[i];
+          const subFullName = `${fullName} ${sub.name}`;
+          const subUsageArgs = sub.arguments.map((arg) => (arg.required ? `<${arg.name}>` : `[${arg.name}]`)).join(" ");
+          const subHasOptions = sub.options.length > 0;
+          const subUsage = `supa ${subFullName}${subUsageArgs ? ` ${subUsageArgs}` : ""}${subHasOptions ? " [options]" : ""}`;
+
+          lines.push(`### \`${sub.name}\``, "");
+          lines.push(sub.description, "");
+          lines.push("```bash", subUsage, "```", "");
+
+          // Arguments for subcommand (use table)
+          if (sub.arguments.length > 0) {
+            lines.push("**Arguments:**", "");
+            lines.push("| Argument | Required | Description |");
+            lines.push("|----------|----------|-------------|");
+            for (const arg of sub.arguments) {
+              let desc = arg.description || "";
+              if (arg.multiple && desc) {
+                desc += " (can be repeated)";
+              } else if (arg.multiple) {
+                desc = "(can be repeated)";
+              }
+              lines.push(`| \`${arg.name}\` | ${arg.required ? "Yes" : "No"} | ${desc} |`);
+            }
+            lines.push("");
+          }
+
+          // Options for subcommand (use table)
+          const subVisibleOptions = sub.options.filter((opt) => !opt.deprecated && opt.description !== undefined);
+          if (subVisibleOptions.length > 0) {
+            lines.push("**Options:**", "");
+            lines.push("| Option | Type | Description |");
+            lines.push("|--------|------|-------------|");
+            for (const opt of subVisibleOptions) {
+              const flag = opt.shorthand ? `-${opt.shorthand}, --${opt.name}` : `--${opt.name}`;
+              const typeStr = getTypeString(opt.type);
+              const argStr = opt.argument ? ` <${opt.argument}>` : "";
+              lines.push(`| \`${flag}${argStr}\` | ${typeStr} | ${opt.description} |`);
+            }
+            lines.push("");
+          }
+
+          // Examples for subcommand (from docs/example.*.md or command.examples)
+          if (sub.examples && sub.examples.length > 0) {
+            const validExamples = sub.examples.filter((ex) => ex.code);
+            if (validExamples.length > 0) {
+              lines.push("**Examples:**", "");
+              for (const example of validExamples) {
+                lines.push(`\`\`\`bash\n${example.code}\n\`\`\``, "");
+                if (example.description) {
+                  lines.push(example.description, "");
+                }
+              }
+            }
+          }
+
+          // Add horizontal rule between subcommands
+          if (i < visibleSubs.length - 1) {
+            lines.push("---", "");
+          }
+        }
+      } else {
+        // Table with links to separate pages (depth 0 behavior)
+        lines.push("## Subcommands", "");
+        lines.push("| Command | Description |");
+        lines.push("|---------|-------------|");
+        for (const sub of visibleSubs) {
+          // Build full path for nested commands
+          const currentPath = parentPath ? `${parentPath}/${command.name}` : parent ? `${parent.name}/${command.name}` : command.name;
+          const subPath = getCommandPath(sub, command, currentPath);
+          lines.push(`| [\`${sub.name}\`](/docs/cli/reference/${subPath}) | ${sub.description} |`);
+        }
+        lines.push("");
       }
-      lines.push("");
     }
   }
 
@@ -185,54 +276,75 @@ function commandToMdx(command: Command, parent?: Command): string {
 /**
  * Write MDX file for a command
  */
-function writeCommandDoc(command: Command, parent?: Command): void {
+function writeCommandDoc(command: Command, parent?: Command, parentPath?: string, depth: number = 0): void {
   const hasSubcommands = command.subcommands && command.subcommands.length > 0;
   const docsDir = getDocsDir(command, parent);
   const hasDocsDir = existsSync(docsDir);
 
+  // Skip file creation for depth 2+ commands - they're inlined in parent
+  if (depth >= 2) {
+    return;
+  }
+
   let filePath: string;
   let displayPath: string;
 
-  if (parent) {
-    // Subcommand: goes in parent's folder
-    filePath = join(DOCS_OUTPUT_DIR, parent.name, `${command.name}.mdx`);
-    displayPath = `${parent.name}/${command.name}.mdx`;
-  } else if (hasSubcommands) {
-    // Parent command with subcommands: create folder, use index.mdx
-    filePath = join(DOCS_OUTPUT_DIR, command.name, "index.mdx");
-    displayPath = `${command.name}/index.mdx`;
+  // Check if subcommands will be inlined (depth >= 1 means subcommands are at depth 2+ and get inlined)
+  const willInlineSubcommands = hasSubcommands && depth >= 1;
+
+  if (hasSubcommands && !willInlineSubcommands) {
+    // Command with subcommands that will be separate pages: create folder, use index.mdx
+    const fullPath = parent ? `${parentPath || parent.name}/${command.name}` : command.name;
+    filePath = join(DOCS_OUTPUT_DIR, fullPath, "index.mdx");
+    displayPath = `${fullPath}/index.mdx`;
+  } else if (parent) {
+    // Leaf subcommand or command with inlined subcommands: single .mdx file in parent's folder
+    const fullParentPath = parentPath || parent.name;
+    filePath = join(DOCS_OUTPUT_DIR, fullParentPath, `${command.name}.mdx`);
+    displayPath = `${fullParentPath}/${command.name}.mdx`;
   } else {
-    // Simple command without subcommands
+    // Top-level command without subcommands
     filePath = join(DOCS_OUTPUT_DIR, `${command.name}.mdx`);
     displayPath = `${command.name}.mdx`;
   }
 
   mkdirSync(dirname(filePath), { recursive: true });
 
-  const content = commandToMdx(command, parent);
+  const content = commandToMdx(command, parent, parentPath, depth);
   writeFileSync(filePath, content);
 
   console.log(`  ${displayPath}${hasDocsDir ? " (+docs/)" : ""}`);
 
-  // Write meta.json for folders with subcommands
-  if (!parent && hasSubcommands) {
+  // Write meta.json only for top-level folders with subcommands
+  // Nested folders let Fumadocs auto-detect children from index.mdx + sibling .mdx files
+  if (hasSubcommands && !parent) {
     const visibleSubs = command.subcommands!.filter((s) => !s.hidden);
-    // Title case the command name
-    const title = command.name.charAt(0).toUpperCase() + command.name.slice(1);
+    // Title case the command name (handle hyphenated names properly)
+    const title = command.name
+      .split("-")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
     const folderMeta = {
       title,
       pages: ["index", ...visibleSubs.map((s) => s.name)],
     };
-    const metaPath = join(DOCS_OUTPUT_DIR, command.name, "meta.json");
+    const fullParentPath = parentPath || parent?.name || "";
+    const commandPath = parent ? `${fullParentPath}/${command.name}` : command.name;
+    const commandDir = join(DOCS_OUTPUT_DIR, commandPath);
+    if (!existsSync(commandDir)) {
+      mkdirSync(commandDir, { recursive: true });
+    }
+    const metaPath = join(commandDir, "meta.json");
     writeFileSync(metaPath, JSON.stringify(folderMeta, null, 2) + "\n");
-    console.log(`  ${command.name}/meta.json`);
+    console.log(`  ${commandPath}/meta.json`);
   }
 
-  // Process subcommands recursively
+  // Process subcommands recursively (pass the full path for nested commands)
   if (command.subcommands) {
+    const currentPath = parentPath ? `${parentPath}/${command.name}` : parent ? `${parent.name}/${command.name}` : command.name;
     for (const sub of command.subcommands) {
       if (!sub.hidden) {
-        writeCommandDoc(sub, command);
+        writeCommandDoc(sub, command, currentPath, depth + 1);
       }
     }
   }

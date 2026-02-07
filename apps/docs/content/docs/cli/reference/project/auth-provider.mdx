@@ -4,8 +4,6 @@ description: "Manage OAuth providers for your project"
 generated: true
 ---
 
-# Auth Provider Commands
-
 Manage OAuth providers for your Supabase project directly from the CLI.
 
 ## Overview
@@ -87,14 +85,110 @@ This means:
 supa project auth-provider
 ```
 
-## Subcommands
+## Commands
 
-| Command | Description |
-|---------|-------------|
-| [`list`](/docs/cli/reference/auth-provider/list) | List all OAuth providers and their status |
-| [`add`](/docs/cli/reference/auth-provider/add) | Configure an OAuth provider |
-| [`enable`](/docs/cli/reference/auth-provider/enable) | Enable an OAuth provider |
-| [`disable`](/docs/cli/reference/auth-provider/disable) | Disable an OAuth provider |
+The following commands are available:
+
+- [`list`](#list) - List all OAuth providers and their status
+- [`add`](#add) - Configure an OAuth provider
+- [`enable`](#enable) - Enable an OAuth provider
+- [`disable`](#disable) - Disable an OAuth provider
+
+---
+
+### `list`
+
+List all OAuth providers and their status
+
+```bash
+supa project auth-provider list [options]
+```
+
+**Options:**
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `-p, --profile <NAME>` | string | Profile to use |
+| `--json` | boolean | Output as JSON |
+
+---
+
+### `add`
+
+Configure an OAuth provider
+
+```bash
+supa project auth-provider add [provider] [options]
+```
+
+**Arguments:**
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `provider` | No | Provider to configure (e.g., google, github, apple) |
+
+**Options:**
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `--client-id` | string | OAuth client ID |
+| `--secret` | string | OAuth client secret |
+| `--secret-from-env` | string | Read secret from environment variable |
+| `--url` | string | Provider URL (for Azure, GitLab, Keycloak, WorkOS) |
+| `--redirect-uri` | string | Custom redirect URI (optional, defaults to Supabase callback) |
+| `--skip-nonce-check` | boolean | Skip nonce validation |
+| `--dry-run` | boolean | Preview changes without applying them |
+| `-p, --profile <NAME>` | string | Profile to use |
+| `--json` | boolean | Output as JSON |
+| `-y, --yes` | boolean | Skip confirmation prompts |
+
+---
+
+### `enable`
+
+Enable an OAuth provider
+
+```bash
+supa project auth-provider enable <provider> [options]
+```
+
+**Arguments:**
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `provider` | Yes | Provider to enable (e.g., google, github) |
+
+**Options:**
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `--dry-run` | boolean | Preview changes without applying them |
+| `-p, --profile <NAME>` | string | Profile to use |
+| `--json` | boolean | Output as JSON |
+
+---
+
+### `disable`
+
+Disable an OAuth provider
+
+```bash
+supa project auth-provider disable <provider> [options]
+```
+
+**Arguments:**
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `provider` | Yes | Provider to disable (e.g., google, github) |
+
+**Options:**
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `--dry-run` | boolean | Preview changes without applying them |
+| `-p, --profile <NAME>` | string | Profile to use |
+| `--json` | boolean | Output as JSON |
 
 ## Examples
 

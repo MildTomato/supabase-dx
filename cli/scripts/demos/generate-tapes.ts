@@ -18,6 +18,7 @@ import { fixtures, type TapeCategory } from "./fixtures/index.js";
 import {
   helpOnlyTape,
   helpAndExampleTape,
+  exampleOnlyTape,
   longRunningTape,
   interactiveTape,
 } from "./templates.js";
@@ -85,6 +86,13 @@ function processCommand(command: Command, parentPath?: string): void {
       const example =
         fixture?.exampleOverride ?? getFirstExample(command) ?? `supa ${commandPath} --help`;
       content = helpAndExampleTape(commandPath, gif, example, opts);
+      break;
+    }
+
+    case "EXAMPLE_ONLY": {
+      const example =
+        fixture?.exampleOverride ?? getFirstExample(command) ?? `supa ${commandPath}`;
+      content = exampleOnlyTape(commandPath, gif, example, opts);
       break;
     }
 

@@ -1,18 +1,20 @@
 #!/usr/bin/env tsx
 /**
- * Render VHS tape files into GIFs
+ * Render VHS tape files into videos
  *
- * Finds all .tape files in generated/ and runs `vhs` on each one sequentially.
+ * Finds all .tape files in generated/ and runs `vhs` on each one.
+ * Init tape runs first (creates the demo project), then the rest run in parallel.
  *
  * Usage:
- *   pnpm demos:render                    # Render all tapes
- *   pnpm demos:render -- --filter init   # Render only matching tapes
- *   pnpm demos:render -- --dry-run       # Print what would render
+ *   pnpm demos:render                       # Render all tapes
+ *   pnpm demos:render -- --filter init      # Render only matching tapes
+ *   pnpm demos:render -- --dry-run          # Print what would render
+ *   pnpm demos:render -- --concurrency 4    # Max parallel renders (default: 4)
  */
 
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
-import { execSync } from "node:child_process";
+import { execSync, spawn } from "node:child_process";
 
 const GENERATED_DIR = join(import.meta.dirname, "generated");
 
@@ -21,17 +23,14 @@ const args = process.argv.slice(2);
 const dryRun = args.includes("--dry-run");
 const filterIdx = args.indexOf("--filter");
 const filter = filterIdx >= 0 ? args[filterIdx + 1] : null;
+const concurrencyIdx = args.indexOf("--concurrency");
+const concurrency = concurrencyIdx >= 0 ? parseInt(args[concurrencyIdx + 1], 10) : 4;
 
-// Find all .tape files (excluding config.tape), init first
+// Find all .tape files (excluding config.tape)
 const tapeFiles = readdirSync(GENERATED_DIR)
   .filter((f) => f.endsWith(".tape") && f !== "config.tape")
   .filter((f) => !filter || f.includes(filter))
-  .sort((a, b) => {
-    // init must run first — it creates the project other tapes depend on
-    if (a === "supa-init.tape") return -1;
-    if (b === "supa-init.tape") return 1;
-    return a.localeCompare(b);
-  });
+  .sort();
 
 if (tapeFiles.length === 0) {
   console.log("No tape files found.");
@@ -61,32 +60,71 @@ try {
 
 // Add cli/bin to PATH so `supa` command is available for VHS
 const CLI_BIN = join(import.meta.dirname, "..", "..", "bin");
-const PATH_WITH_CLI = `${CLI_BIN}:${process.env.PATH}`;
+
+function renderTape(file: string): Promise<{ file: string; ok: boolean }> {
+  return new Promise((resolve) => {
+    const child = spawn("bash", ["-c", `PATH="${CLI_BIN}:$PATH" vhs ${file}`], {
+      cwd: GENERATED_DIR,
+      stdio: "pipe",
+      timeout: 180_000,
+    });
+
+    child.on("close", (code) => {
+      if (code === 0) {
+        console.log(`  ✓ ${file}`);
+        resolve({ file, ok: true });
+      } else {
+        console.error(`  ✗ ${file} (exit ${code})`);
+        resolve({ file, ok: false });
+      }
+    });
+
+    child.on("error", (err) => {
+      console.error(`  ✗ ${file} (${err.message})`);
+      resolve({ file, ok: false });
+    });
+  });
+}
+
+async function renderBatch(files: string[], max: number): Promise<number> {
+  let failed = 0;
+  // Process in chunks of `max`
+  for (let i = 0; i < files.length; i += max) {
+    const batch = files.slice(i, i + max);
+    console.log(`\nBatch ${Math.floor(i / max) + 1}: rendering ${batch.length} tape(s)...`);
+    const results = await Promise.all(batch.map(renderTape));
+    failed += results.filter((r) => !r.ok).length;
+  }
+  return failed;
+}
+
+// ── Main ──────────────────────────────────────────────────────
+
+const initTape = "supa-init.tape";
+const hasInit = tapeFiles.includes(initTape);
+const restTapes = tapeFiles.filter((f) => f !== initTape);
 
 let failed = 0;
 
-for (const file of tapeFiles) {
-  const tapePath = join(GENERATED_DIR, file);
-  console.log(`Rendering ${file}...`);
-
-  try {
-    execSync(`PATH="${CLI_BIN}:$PATH" vhs ${file}`, {
-      cwd: GENERATED_DIR,
-      stdio: "inherit",
-      timeout: 120_000,
-    });
-    console.log(`  Done.`);
-  } catch (err) {
-    console.error(`  FAILED: ${file}`);
-    if (err instanceof Error) {
-      console.error(`  ${err.message}`);
-    }
-    failed++;
+// Init must run first — it creates the project other tapes depend on
+if (hasInit) {
+  console.log("Phase 1: Rendering init tape (creates demo project)...");
+  const result = await renderTape(initTape);
+  if (!result.ok) {
+    console.error("Init tape failed — aborting (other tapes depend on it).");
+    process.exit(1);
   }
 }
 
+// Render the rest in parallel
+if (restTapes.length > 0) {
+  console.log(`\nPhase 2: Rendering ${restTapes.length} tape(s) in parallel (concurrency: ${concurrency})...`);
+  failed = await renderBatch(restTapes, concurrency);
+}
+
+const total = tapeFiles.length;
 console.log("");
-console.log(`Rendered ${tapeFiles.length - failed}/${tapeFiles.length} tapes.`);
+console.log(`Rendered ${total - failed}/${total} tapes.`);
 
 if (failed > 0) {
   console.error(`${failed} tape(s) failed.`);

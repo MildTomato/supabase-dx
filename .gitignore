@@ -35,5 +35,9 @@ coverage/
 npm-debug.log*
 pnpm-debug.log*
 
+# Generated VHS tapes
+cli/scripts/demos/generated/
+cli/demos/recordings/
+
 # External tools (not submodules)
 external/cli

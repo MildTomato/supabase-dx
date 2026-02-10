@@ -2,6 +2,8 @@
  * Shared constants
  */
 
+import chalk from "chalk";
+
 // Region type from the API
 export type Region =
   | "us-east-1"
@@ -62,17 +64,17 @@ export const REGIONS: Array<{ key: string; label: string; value: Region }> = [
 export function formatProjectStatus(status: string): string {
   switch (status) {
     case "ACTIVE_HEALTHY":
-      return "● Healthy";
+      return chalk.green("● Healthy");
     case "ACTIVE_UNHEALTHY":
-      return "● Unhealthy";
+      return chalk.red("● Unhealthy");
     case "COMING_UP":
-      return "○ Starting";
+      return chalk.yellow("○ Starting");
     case "GOING_DOWN":
-      return "○ Stopping";
+      return chalk.yellow("○ Stopping");
     case "INACTIVE":
     case "PAUSED":
-      return "○ Paused";
+      return chalk.yellow("○ Paused");
     default:
-      return status;
+      return chalk.dim(status);
   }
 }

@@ -52,6 +52,7 @@ export const fixtures = new Map<string, TapeFixture>([
 
   // Parent commands with no direct examples
   ["projects", { category: "HELP_ONLY" }],
+  ["projects delete", { category: "HELP_ONLY" }],
   ["project", { category: "HELP_ONLY" }],
   ["project env", { category: "HELP_ONLY" }],
   ["project auth-provider", { category: "HELP_ONLY" }],

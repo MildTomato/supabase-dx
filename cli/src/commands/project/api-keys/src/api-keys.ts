@@ -6,6 +6,7 @@ import chalk from "chalk";
 import { createClient, type ApiKey } from "@/lib/api.js";
 import { resolveProjectContext, requireTTY } from "@/lib/resolve-project.js";
 import { createSpinner } from "@/lib/spinner.js";
+import { printTable } from "@/components/table.js";
 
 interface ApiKeysOptions {
   profile?: string;
@@ -36,27 +37,15 @@ function maskApiKey(key: string | null | undefined, reveal: boolean): string {
   return key;
 }
 
-function printTable(keys: ApiKey[], reveal: boolean) {
-  const nameW = 20;
-  const typeW = 15;
-  const keyW = 50;
-
-  // Header
-  console.log(
-    chalk.dim("NAME".padEnd(nameW)) +
-    chalk.dim("TYPE".padEnd(typeW)) +
-    chalk.dim("KEY".padEnd(keyW))
+function printKeysTable(keys: ApiKey[], reveal: boolean) {
+  printTable(
+    [
+      { label: "Name", width: 20, value: (k: ApiKey) => k.name || "-" },
+      { label: "Type", width: 15, value: (k: ApiKey) => formatKeyType(k.type) },
+      { label: "Key", width: 50, value: (k: ApiKey) => maskApiKey(k.api_key, reveal) },
+    ],
+    keys,
   );
-  console.log(chalk.dim("─".repeat(nameW + typeW + keyW)));
-
-  // Rows
-  for (const k of keys) {
-    console.log(
-      (k.name || "-").slice(0, nameW - 1).padEnd(nameW) +
-      formatKeyType(k.type).padEnd(typeW + 10) + // extra for ANSI codes
-      maskApiKey(k.api_key, reveal)
-    );
-  }
 }
 
 export async function apiKeysCommand(options: ApiKeysOptions): Promise<void> {
@@ -98,7 +87,7 @@ export async function apiKeysCommand(options: ApiKeysOptions): Promise<void> {
     console.log();
     console.log(chalk.bold(`API Keys for ${chalk.cyan(projectRef)}`));
     console.log();
-    printTable(apiKeys, reveal);
+    printKeysTable(apiKeys, reveal);
 
     if (!reveal) {
       console.log();

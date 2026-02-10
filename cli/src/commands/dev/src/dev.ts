@@ -28,6 +28,7 @@ import {
 } from "@/lib/pg-delta.js";
 import { getSeedConfig } from "@/lib/seed-config.js";
 import { C } from "@/lib/colors.js";
+import { SPINNER_FRAMES } from "@/lib/spinner.js";
 import { printCommandHeader, S_BAR } from "@/components/command-header.js";
 import * as p from "@clack/prompts";
 import {

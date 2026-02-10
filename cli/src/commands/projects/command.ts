@@ -18,6 +18,40 @@ const listSubcommand = {
   examples: [],
 } as const satisfies Command;
 
+const deleteSubcommand = {
+  name: "delete",
+  aliases: ["remove", "rm"],
+  description: "Delete a project",
+  arguments: [],
+  options: [
+    {
+      name: "project",
+      shorthand: null,
+      type: String,
+      argument: "REF",
+      deprecated: false,
+      description: "Project reference ID",
+    },
+    { ...orgOption, description: "Filter by organization" },
+    { ...yesOption, description: "Skip confirmation prompt" },
+    { ...jsonOption },
+  ],
+  examples: [
+    {
+      name: "Interactive delete",
+      value: "supa projects delete",
+    },
+    {
+      name: "Delete by ref",
+      value: "supa projects delete --project abc123xyz",
+    },
+    {
+      name: "Skip confirmation",
+      value: "supa projects delete --project abc123xyz --yes",
+    },
+  ],
+} as const satisfies Command;
+
 const newSubcommand = {
   name: "new",
   aliases: ["create"],
@@ -38,7 +72,7 @@ export const projectsCommand = {
   aliases: [],
   description: "Manage projects",
   arguments: [],
-  subcommands: [listSubcommand, newSubcommand],
+  subcommands: [listSubcommand, newSubcommand, deleteSubcommand],
   options: [],
   examples: [
     {
@@ -53,7 +87,15 @@ export const projectsCommand = {
       name: "Create a new project",
       value: "supa projects new",
     },
+    {
+      name: "Delete a project",
+      value: "supa projects delete",
+    },
   ],
 } as const satisfies Command;
 
-export { listSubcommand as projectsListSubcommand, newSubcommand as projectsNewSubcommand };
+export {
+  listSubcommand as projectsListSubcommand,
+  newSubcommand as projectsNewSubcommand,
+  deleteSubcommand as projectsDeleteSubcommand,
+};

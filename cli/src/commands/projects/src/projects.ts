@@ -10,55 +10,54 @@ import { formatProjectStatus, REGIONS, type Region } from "@/lib/constants.js";
 import { createProject as createProjectOp } from "@/lib/operations.js";
 import { searchSelect } from "@/components/search-select.js";
 import { createSpinner } from "@/lib/spinner.js";
+import { printCommandHeader } from "@/components/command-header.js";
+import { printTable } from "@/components/table.js";
 
 interface ProjectsOptions {
-  action: "list" | "new";
+  action: "list" | "new" | "delete";
   json?: boolean;
   org?: string;
   region?: string;
   name?: string;
   yes?: boolean;
   dryRun?: boolean;
+  projectRef?: string;
 }
 
-function printTable(projects: Project[]) {
-  // Column widths
-  const nameW = 30;
-  const refW = 25;
-  const regionW = 15;
-  const statusW = 15;
-
-  // Header
-  console.log(
-    chalk.bold.cyan("Name".padEnd(nameW)) +
-    chalk.bold.cyan("Ref".padEnd(refW)) +
-    chalk.bold.cyan("Region".padEnd(regionW)) +
-    chalk.bold.cyan("Status".padEnd(statusW))
+function printProjectsTable(projects: Project[], orgNames: Map<string, string>) {
+  printTable(
+    [
+      { label: "Name", width: 30, value: (p: Project) => p.name },
+      { label: "Org", width: 25, value: (p: Project) => orgNames.get(p.organization_slug) || p.organization_slug },
+      { label: "Id", width: 25, value: (p: Project) => p.ref },
+      { label: "Status", width: 20, value: (p: Project) => formatProjectStatus(p.status) },
+    ],
+    projects,
   );
-  console.log(chalk.dim("─".repeat(nameW + refW + regionW + statusW)));
-
-  // Rows
-  for (const proj of projects) {
-    console.log(
-      proj.name.slice(0, nameW - 1).padEnd(nameW) +
-      proj.ref.padEnd(refW) +
-      proj.region.padEnd(regionW) +
-      formatProjectStatus(proj.status).padEnd(statusW)
-    );
-  }
 }
 
 async function listProjects(token: string, orgSlug?: string) {
+  printCommandHeader({
+    command: "supa projects list",
+    description: ["List all projects."],
+  });
+
   const spinner = createSpinner();
   spinner.start("Loading projects...");
 
   try {
     const client = createClient(token);
-    let projects = await client.listProjects();
+    const [allProjects, orgs] = await Promise.all([
+      client.listProjects(),
+      client.listOrganizations(),
+    ]);
 
+    let projects = allProjects;
     if (orgSlug) {
       projects = projects.filter((p) => p.organization_slug === orgSlug);
     }
+
+    const orgNames = new Map(orgs.map((o) => [o.slug, o.name]));
 
     spinner.stop(`Found ${projects.length} project${projects.length === 1 ? "" : "s"}`);
 
@@ -68,7 +67,8 @@ async function listProjects(token: string, orgSlug?: string) {
     }
 
     console.log();
-    printTable(projects);
+    printProjectsTable(projects, orgNames);
+    console.log();
   } catch (error) {
     spinner.stop("Failed to load projects");
     console.error(
@@ -79,34 +79,41 @@ async function listProjects(token: string, orgSlug?: string) {
   }
 }
 
+async function selectOrg(client: ReturnType<typeof createClient>, orgSlug?: string): Promise<string> {
+  if (orgSlug) return orgSlug;
+
+  const spinner = createSpinner();
+  spinner.start("Fetching organizations...");
+  const orgs = await client.listOrganizations();
+  spinner.stop(`Found ${orgs.length} organization${orgs.length === 1 ? "" : "s"}`);
+
+  if (orgs.length === 0) {
+    console.error(chalk.red("No organizations found. Create one at supabase.com first."));
+    process.exit(1);
+  }
+
+  const selected = await searchSelect({
+    message: "Select organization",
+    items: orgs.map((o) => ({ value: o.slug, label: o.name, hint: o.slug })),
+  });
+
+  if (p.isCancel(selected)) {
+    p.cancel("Cancelled");
+    process.exit(0);
+  }
+
+  return selected;
+}
+
 async function createProject(token: string, options: ProjectsOptions) {
+  printCommandHeader({
+    command: "supa projects new",
+    description: ["Create a new project."],
+  });
+
   const client = createClient(token);
 
-  // Get org
-  let orgSlug = options.org;
-  if (!orgSlug) {
-    const spinner = createSpinner();
-    spinner.start("Fetching organizations...");
-    const orgs = await client.listOrganizations();
-    spinner.stop(`Found ${orgs.length} organization${orgs.length === 1 ? "" : "s"}`);
-
-    if (orgs.length === 0) {
-      console.error(chalk.red("No organizations found. Create one at supabase.com first."));
-      process.exit(1);
-    }
-
-    const selected = await searchSelect({
-      message: "Select organization",
-      items: orgs.map((o) => ({ value: o.slug, label: o.name, hint: o.slug })),
-    });
-
-    if (p.isCancel(selected)) {
-      p.cancel("Cancelled");
-      process.exit(0);
-    }
-
-    orgSlug = selected;
-  }
+  const orgSlug = await selectOrg(client, options.org);
 
   // Get name
   let projectName = options.name;
@@ -182,6 +189,104 @@ async function createProject(token: string, options: ProjectsOptions) {
     );
     process.exit(1);
   }
+
+  console.log();
+}
+
+async function deleteProject(token: string, options: ProjectsOptions) {
+  printCommandHeader({
+    command: "supa projects delete",
+    description: ["Permanently delete a project."],
+  });
+
+  const client = createClient(token);
+
+  let ref = options.projectRef;
+
+  // If no ref provided, let the user pick org then project
+  if (!ref) {
+    const orgSlug = await selectOrg(client, options.org);
+
+    // List projects for that org
+    const spinner = createSpinner();
+    spinner.start("Loading projects...");
+    const allProjects = await client.listProjects();
+    const projects = allProjects.filter((proj) => proj.organization_slug === orgSlug);
+    spinner.stop(`Found ${projects.length} project${projects.length === 1 ? "" : "s"}`);
+
+    if (projects.length === 0) {
+      console.log(chalk.dim("\nNo projects found in this organization."));
+      return;
+    }
+
+    const selected = await searchSelect({
+      message: "Select project to delete",
+      items: projects.map((proj) => ({
+        value: proj.ref,
+        label: proj.name,
+        hint: `${proj.ref} · ${proj.region}`,
+      })),
+    });
+
+    if (p.isCancel(selected)) {
+      p.cancel("Cancelled");
+      process.exit(0);
+    }
+
+    ref = selected;
+  }
+
+  // Look up project details for confirmation
+  const lookupSpinner = createSpinner();
+  lookupSpinner.start("Looking up project...");
+
+  let project: Project;
+  try {
+    project = await client.getProject(ref);
+    lookupSpinner.stop(`Project: ${project.name}`);
+  } catch (error) {
+    lookupSpinner.stop("Project not found");
+    console.error(
+      chalk.red("Error:"),
+      error instanceof Error ? error.message : "Unknown error"
+    );
+    process.exit(1);
+  }
+
+  // Confirm unless --yes
+  if (!options.yes) {
+    console.log();
+    console.log(`  ${chalk.dim("Name:")}   ${project.name}`);
+    console.log(`  ${chalk.dim("Ref:")}    ${ref}`);
+    console.log(`  ${chalk.dim("Region:")} ${project.region}`);
+    console.log();
+
+    const confirmed = await p.confirm({
+      message: `Permanently delete ${project.name}? This cannot be undone.`,
+    });
+
+    if (p.isCancel(confirmed) || !confirmed) {
+      p.cancel("Deletion cancelled");
+      process.exit(0);
+    }
+  }
+
+  const deleteSpinner = createSpinner();
+  deleteSpinner.start(`Deleting project "${project.name}"...`);
+
+  try {
+    await client.deleteProject(ref);
+    deleteSpinner.stop(chalk.green(`Project deleted: ${project.name}`));
+  } catch (error) {
+    deleteSpinner.stop("Failed to delete project");
+    console.error(
+      chalk.red("Error:"),
+      error instanceof Error ? error.message : "Unknown error"
+    );
+    process.exit(1);
+  }
+
+  console.log();
 }
 
 export async function projectsCommand(options: ProjectsOptions) {
@@ -209,6 +314,23 @@ export async function projectsCommand(options: ProjectsOptions) {
     return;
   }
 
+  // JSON mode for delete
+  if (options.json && options.action === "delete") {
+    try {
+      const client = createClient(token);
+      await client.deleteProject(options.projectRef!);
+      console.log(JSON.stringify({ status: "success", ref: options.projectRef }));
+    } catch (error) {
+      console.log(
+        JSON.stringify({
+          status: "error",
+          message: error instanceof Error ? error.message : "Failed to delete project",
+        })
+      );
+    }
+    return;
+  }
+
   // Non-TTY check for interactive modes
   if (!options.json && !process.stdin.isTTY) {
     console.error("Error: Interactive mode requires a TTY.");
@@ -216,7 +338,9 @@ export async function projectsCommand(options: ProjectsOptions) {
     process.exit(1);
   }
 
-  if (options.action === "new") {
+  if (options.action === "delete") {
+    await deleteProject(token, options);
+  } else if (options.action === "new") {
     await createProject(token, options);
   } else {
     await listProjects(token, options.org);

@@ -15,7 +15,10 @@
     "typecheck": "tsc --noEmit",
     "generate:api-types": "openapi-typescript ../docs/supabase-management-api-v1.json -o src/lib/api-types.ts",
     "docs:spec": "tsx scripts/export-spec.ts > spec.json",
-    "docs:generate": "tsx scripts/generate-docs.ts"
+    "docs:generate": "tsx scripts/generate-docs.ts",
+    "demos:generate": "tsx scripts/demos/generate-tapes.ts",
+    "demos:render": "tsx scripts/demos/render-tapes.ts",
+    "demos": "pnpm demos:generate && pnpm demos:render"
   },
   "dependencies": {
     "@ariga/atlas": "^1.0.0",

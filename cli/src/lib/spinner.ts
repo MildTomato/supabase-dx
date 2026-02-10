@@ -7,7 +7,7 @@
 
 import chalk from "chalk";
 
-const SPINNER_FRAMES = ["◒", "◐", "◓", "◑"];
+export const SPINNER_FRAMES = ["◒", "◐", "◓", "◑"];
 const SPINNER_INTERVAL = 80;
 
 export interface Spinner {

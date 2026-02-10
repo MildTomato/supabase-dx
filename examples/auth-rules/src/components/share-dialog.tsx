@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { z } from "zod";
 import { VscTrash } from "react-icons/vsc";
 import {
@@ -48,7 +48,7 @@ export function ShareDialog({
   resourceType,
 }: ShareDialogProps) {
   const form = useForm<ShareFormValues>({
-    resolver: zodResolver(shareFormSchema),
+    resolver: standardSchemaResolver(shareFormSchema),
     defaultValues: {
       user: null,
       permission: "view",

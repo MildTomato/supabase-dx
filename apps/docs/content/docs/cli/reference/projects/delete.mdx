@@ -1,0 +1,43 @@
+---
+title: "supa projects delete"
+description: "Delete a project"
+generated: true
+---
+
+Permanently delete a Supabase project. This removes all data, databases,
+and resources associated with the project. You'll be prompted for
+confirmation unless you pass `--yes`.
+
+## Usage
+
+```bash
+supa projects delete [options]
+```
+
+## Options
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `--project <REF>` | string | Project reference ID |
+| `-y, --yes` | boolean | Skip confirmation prompt |
+| `--json` | boolean | Output as JSON |
+
+## Examples
+
+### Interactive delete
+
+```bash
+supa projects delete
+```
+
+### Delete by ref
+
+```bash
+supa projects delete --project abc123xyz
+```
+
+### Skip confirmation
+
+```bash
+supa projects delete --project abc123xyz --yes
+```

@@ -3,7 +3,7 @@
  */
 
 import arg from "arg";
-import { projectsCommand, projectsListSubcommand, projectsNewSubcommand } from "./command.js";
+import { projectsCommand, projectsListSubcommand, projectsNewSubcommand, projectsDeleteSubcommand } from "./command.js";
 import { getFlagsSpecification } from "@/util/commands/get-flags-specification.js";
 import { globalCommandOptions } from "@/util/commands/arg-common.js";
 import { renderHelp } from "@/util/commands/help.js";
@@ -28,6 +28,10 @@ export default async function projects(argv: string[]): Promise<number> {
 
   if (subcommand === "new" || subcommand === "create") {
     return handleNew(rest);
+  }
+
+  if (subcommand === "delete" || subcommand === "remove" || subcommand === "rm") {
+    return handleDelete(rest);
   }
 
   // Unknown subcommand - treat as list (default)
@@ -86,6 +90,35 @@ async function handleNew(argv: string[]): Promise<number> {
     name: args["--name"],
     yes: args["--yes"],
     dryRun: args["--dry-run"],
+  });
+
+  return 0;
+}
+
+async function handleDelete(argv: string[]): Promise<number> {
+  const spec = getFlagsSpecification([...projectsDeleteSubcommand.options, ...globalCommandOptions]);
+
+  let args: arg.Result<typeof spec>;
+  try {
+    args = arg(spec, { argv, permissive: false });
+  } catch (err) {
+    if (err instanceof Error) {
+      console.error(`Error: ${err.message}`);
+    }
+    return 1;
+  }
+
+  if (args["--help"]) {
+    renderHelp(projectsDeleteSubcommand, { parent: projectsCommand });
+    return 0;
+  }
+
+  await projectsHandler({
+    action: "delete",
+    projectRef: args["--project"],
+    org: args["--org"],
+    yes: args["--yes"],
+    json: args["--json"],
   });
 
   return 0;

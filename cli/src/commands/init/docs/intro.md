@@ -1,57 +1,42 @@
 Set up Supabase in the current directory.
 
-Creates the `supabase/` folder structure and links to a project. You can either
-create a new project or connect to an existing one.
+Creates the `supabase/` folder structure. You can start with local development
+(no account needed), connect to an existing project, or create a new one.
 
 Run this once at the root of your repository to get started.
 
-## What it does
+## Development modes
 
-1. Prompts you to select an organization and project
-2. Creates the `supabase/` directory structure
-3. Configures your workflow profile
-4. Generates TypeScript types for your schema
+Run `supa init` and select how you'd like to develop.
 
-## Interactive flow
+### Connecting to the platform
 
-Running `supa init` walks you through setup:
+Select "Connect to existing project" or "Create a new project" to link to
+Supabase Platform. Both options walk you through organization, project,
+schema management, and workflow profile selection.
 
-```ansi
-$ supa init
+<Tabs items={['Connect to existing', 'Create new project']}>
+<Tab value="Connect to existing">
 
-  ◆  Select organization
-  │  ● My Team
-  │  ○ Personal
-  └
+<video src="/demos/supa-init--connect.webm" autoPlay loop muted playsInline style={{ borderRadius: "8px", border: "1px solid #333" }} />
 
-  ◆  What would you like to do?
-  │  ● Link to existing project
-  │  ○ Create new project
-  └
+</Tab>
+<Tab value="Create new project">
 
-  ◆  Select project
-  │  ● my-app (us-east-1)
-  │  ○ staging-db (eu-west-1)
-  └
+<video src="/demos/supa-init.webm" autoPlay loop muted playsInline style={{ borderRadius: "8px", border: "1px solid #333" }} />
 
-  ◆  Select workflow profile
-  │  ● solo     — Direct production deployments
-  │  ○ staged   — Staging environment for testing
-  │  ○ preview  — Isolated preview environments
-  └
+</Tab>
+</Tabs>
 
-  ✓  Linked to project my-app
+### Local development
 
-  Created:
-    supabase/config.json
-    supabase/schema/
-    supabase/migrations/
-    supabase/types/database.ts
+Select "Local development" to scaffold the project structure without an
+account. Run `supa init` again later to connect to the platform.
 
-  Your API credentials:
-    URL:  https://abc123xyz.supabase.co
-    Anon: eyJhbGciOiJIUzI1NiIsInR5cCI6...
-```
+If you previously initialized locally, running `supa init` again offers to
+connect the existing project.
+
+<video src="/demos/supa-init--local.webm" autoPlay loop muted playsInline style={{ borderRadius: "8px", border: "1px solid #333" }} />
 
 ## Created files
 

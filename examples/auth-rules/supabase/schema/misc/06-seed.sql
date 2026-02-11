@@ -1,5 +1,5 @@
 -- =============================================================================
--- SEED: Create 10,000 files and folders for new users
+-- SEED: Create files and folders for new users (varies per user)
 -- =============================================================================
 
 CREATE OR REPLACE FUNCTION public.seed_new_user()
@@ -12,57 +12,70 @@ DECLARE
   v_subfolders TEXT[] := ARRAY['2024', '2023', '2022', 'Important', 'Draft', 'Final', 'Review', 'Archive', 'New', 'Old'];
   v_file_types TEXT[] := ARRAY['.pdf', '.docx', '.xlsx', '.md', '.txt', '.jpg', '.png', '.zip', '.json', '.csv'];
   v_prefixes TEXT[] := ARRAY['Report', 'Document', 'File', 'Data', 'Notes', 'Meeting', 'Project', 'Draft', 'Final', 'Backup'];
+  v_root_notes TEXT[] := ARRAY['Quick Notes.md', 'TODO.md', 'Ideas.md', 'Bookmarks.md', 'scratch.txt', 'README.md', 'Links.md', 'Changelog.md'];
   i INTEGER;
   j INTEGER;
-  k INTEGER;
   v_folder_ids UUID[];
   v_all_folder_ids UUID[];
   v_file_count INTEGER := 0;
-  v_target_files INTEGER := 10000;
+  v_num_roots INTEGER;
+  v_num_subs INTEGER;
+  v_num_nested INTEGER;
+  v_target_files INTEGER;
   v_size BIGINT;
 BEGIN
+  -- Vary structure per user: shuffle arrays so each user gets different items
+  SELECT array_agg(x ORDER BY random()) INTO v_root_folders FROM unnest(v_root_folders) AS x;
+  SELECT array_agg(x ORDER BY random()) INTO v_subfolders FROM unnest(v_subfolders) AS x;
+  SELECT array_agg(x ORDER BY random()) INTO v_root_notes FROM unnest(v_root_notes) AS x;
+
+  v_num_roots := 5 + floor(random() * 6)::int;   -- 5-10 root folders
+  v_target_files := 6000 + floor(random() * 8000)::int;  -- 6000-14000 files
+
   -- =========================================================================
-  -- CREATE ROOT FOLDERS (10)
+  -- CREATE ROOT FOLDERS (random subset, shuffled)
   -- =========================================================================
-  FOR i IN 1..array_length(v_root_folders, 1) LOOP
-    INSERT INTO public.folders (owner_id, name) 
-    VALUES (v_user_id, v_root_folders[i]) 
+  FOR i IN 1..v_num_roots LOOP
+    INSERT INTO public.folders (owner_id, name)
+    VALUES (v_user_id, v_root_folders[i])
     RETURNING id INTO v_folder_id;
     v_folder_ids := array_append(v_folder_ids, v_folder_id);
     v_all_folder_ids := array_append(v_all_folder_ids, v_folder_id);
   END LOOP;
 
   -- =========================================================================
-  -- CREATE SUBFOLDERS (10 per root = 100 subfolders)
+  -- CREATE SUBFOLDERS (random count per root)
   -- =========================================================================
   FOREACH v_folder_id IN ARRAY v_folder_ids LOOP
-    FOR i IN 1..array_length(v_subfolders, 1) LOOP
-      INSERT INTO public.folders (owner_id, parent_id, name) 
-      VALUES (v_user_id, v_folder_id, v_subfolders[i]) 
+    v_num_subs := 3 + floor(random() * 8)::int;  -- 3-10 subfolders per root
+    FOR i IN 1..v_num_subs LOOP
+      INSERT INTO public.folders (owner_id, parent_id, name)
+      VALUES (v_user_id, v_folder_id, v_subfolders[i])
       RETURNING id INTO v_subfolder_id;
       v_all_folder_ids := array_append(v_all_folder_ids, v_subfolder_id);
     END LOOP;
   END LOOP;
 
   -- =========================================================================
-  -- CREATE NESTED SUBFOLDERS (5 per subfolder = 500 more folders)
+  -- CREATE NESTED SUBFOLDERS (random depth per subfolder)
   -- =========================================================================
-  FOR i IN 11..110 LOOP  -- subfolders start at index 11
-    FOR j IN 1..5 LOOP
-      INSERT INTO public.folders (owner_id, parent_id, name) 
-      VALUES (v_user_id, v_all_folder_ids[i], 'Folder ' || j) 
+  FOR i IN (v_num_roots + 1)..array_length(v_all_folder_ids, 1) LOOP
+    v_num_nested := floor(random() * 6)::int;  -- 0-5 nested folders
+    FOR j IN 1..v_num_nested LOOP
+      INSERT INTO public.folders (owner_id, parent_id, name)
+      VALUES (v_user_id, v_all_folder_ids[i], 'Folder ' || j)
       RETURNING id INTO v_subfolder_id;
       v_all_folder_ids := array_append(v_all_folder_ids, v_subfolder_id);
     END LOOP;
   END LOOP;
 
   -- =========================================================================
-  -- CREATE 10,000 FILES distributed across folders
+  -- CREATE FILES distributed across folders
   -- =========================================================================
   WHILE v_file_count < v_target_files LOOP
     -- Pick a random folder
     v_folder_id := v_all_folder_ids[1 + floor(random() * array_length(v_all_folder_ids, 1))::int];
-    
+
     -- Generate random size: 70% small (1KB-1MB), 20% medium (1-10MB), 10% large (10-100MB)
     IF random() < 0.7 THEN
       v_size := floor(random() * 1048576) + 1024;  -- 1KB - 1MB
@@ -73,28 +86,26 @@ BEGIN
     END IF;
 
     -- Insert file with random name
-    INSERT INTO public.files (owner_id, folder_id, name, size) 
+    INSERT INTO public.files (owner_id, folder_id, name, size)
     VALUES (
-      v_user_id, 
-      v_folder_id, 
-      v_prefixes[1 + floor(random() * array_length(v_prefixes, 1))::int] || '_' || 
-        to_char(v_file_count, 'FM00000') || 
+      v_user_id,
+      v_folder_id,
+      v_prefixes[1 + floor(random() * array_length(v_prefixes, 1))::int] || '_' ||
+        to_char(v_file_count, 'FM00000') ||
         v_file_types[1 + floor(random() * array_length(v_file_types, 1))::int],
       v_size
     );
-    
+
     v_file_count := v_file_count + 1;
   END LOOP;
 
   -- =========================================================================
-  -- ADD SOME ROOT FILES (no folder)
+  -- ADD SOME ROOT FILES (random subset)
   -- =========================================================================
-  INSERT INTO public.files (owner_id, folder_id, name, size) VALUES
-    (v_user_id, NULL, 'Quick Notes.md', 1024),
-    (v_user_id, NULL, 'TODO.md', 512),
-    (v_user_id, NULL, 'Ideas.md', 2048),
-    (v_user_id, NULL, 'Bookmarks.md', 1536),
-    (v_user_id, NULL, 'scratch.txt', 256);
+  FOR i IN 1..(2 + floor(random() * (array_length(v_root_notes, 1) - 1))::int) LOOP
+    INSERT INTO public.files (owner_id, folder_id, name, size)
+    VALUES (v_user_id, NULL, v_root_notes[i], floor(random() * 4096) + 256);
+  END LOOP;
 
   RETURN NEW;
 END;

@@ -2,17 +2,22 @@
 /**
  * Render VHS tape files into videos
  *
- * Finds all .tape files in generated/ and runs `vhs` on each one.
- * Init tape runs first (creates the demo project), then the rest run in parallel.
+ * Pipeline:
+ *   1. supa-init--local (local init, creates recordings dir)
+ *   2. Create .env in recordings dir
+ *   3. supa-init (init with new project — config.json gets project_id)
+ *   4. Rest of tapes in parallel (have project config + .env)
+ *   5. supa-init--connect (connect to existing project)
+ *   6. Cleanup: delete the project created in step 3
  *
  * Usage:
  *   pnpm demos:render                       # Render all tapes
- *   pnpm demos:render -- --filter init      # Render only matching tapes
+ *   pnpm demos:render -- --filter bootstrap # Render only matching tapes (init tapes still run)
  *   pnpm demos:render -- --dry-run          # Print what would render
  *   pnpm demos:render -- --concurrency 4    # Max parallel renders (default: 4)
  */
 
-import { readdirSync } from "node:fs";
+import { readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { execSync, spawn } from "node:child_process";
 
@@ -27,19 +32,36 @@ const concurrencyIdx = args.indexOf("--concurrency");
 const concurrency = concurrencyIdx >= 0 ? parseInt(args[concurrencyIdx + 1], 10) : 4;
 
 // Find all .tape files (excluding config.tape)
-const tapeFiles = readdirSync(GENERATED_DIR)
+const allTapes = readdirSync(GENERATED_DIR)
   .filter((f) => f.endsWith(".tape") && f !== "config.tape")
-  .filter((f) => !filter || f.includes(filter))
   .sort();
 
-if (tapeFiles.length === 0) {
+// Init tapes run sequentially in a specific order; everything else runs in parallel
+const INIT_LOCAL = "supa-init--local.tape";
+const INIT_CONNECT = "supa-init--connect.tape";
+const INIT_CREATE = "supa-init.tape"; // init--create is the main init tape
+
+const initTapes = [INIT_LOCAL, INIT_CONNECT, INIT_CREATE].filter((f) => allTapes.includes(f));
+const initSet = new Set(initTapes);
+
+// Filter applies only to non-init tapes
+const restTapes = allTapes
+  .filter((f) => !initSet.has(f))
+  .filter((f) => !filter || f.includes(filter));
+
+const totalToRender = initTapes.length + restTapes.length;
+
+if (totalToRender === 0) {
   console.log("No tape files found.");
   if (filter) console.log(`  (filter: "${filter}")`);
   process.exit(0);
 }
 
-console.log(`Found ${tapeFiles.length} tape file(s) to render:`);
-for (const f of tapeFiles) {
+console.log(`Rendering ${totalToRender} tape(s):`);
+for (const f of initTapes) {
+  console.log(`  ${f} (sequential)`);
+}
+for (const f of restTapes) {
   console.log(`  ${f}`);
 }
 console.log("");
@@ -98,33 +120,77 @@ async function renderBatch(files: string[], max: number): Promise<number> {
   return failed;
 }
 
-// ── Main ──────────────────────────────────────────────────────
+const RECORDINGS_DIR = join(import.meta.dirname, "..", "..", "demos", "recordings");
 
-const initTape = "supa-init.tape";
-const hasInit = tapeFiles.includes(initTape);
-const restTapes = tapeFiles.filter((f) => f !== initTape);
+function cleanupDemoProject(): void {
+  console.log("\nStep 6: Cleaning up demo project...");
+  try {
+    const out = execSync(
+      `PATH="${CLI_BIN}:$PATH" supa projects list --json`,
+      { encoding: "utf-8", timeout: 30_000 },
+    );
+    const { projects } = JSON.parse(out);
+    const demo = projects.find((p: { name: string }) => p.name.endsWith("-delete-me"));
+    if (!demo) {
+      console.log("  No demo project found.");
+      return;
+    }
+    execSync(
+      `PATH="${CLI_BIN}:$PATH" supa projects delete --project ${demo.ref} --yes --json`,
+      { stdio: "pipe", timeout: 30_000 },
+    );
+    console.log(`  Deleted project ${demo.name} (${demo.ref})`);
+  } catch (err) {
+    console.error("  Cleanup failed:", err instanceof Error ? err.message : err);
+  }
+}
+
+// ── Main ──────────────────────────────────────────────────────
 
 let failed = 0;
 
-// Init must run first — it creates the project other tapes depend on
-if (hasInit) {
-  console.log("Phase 1: Rendering init tape (creates demo project)...");
-  const result = await renderTape(initTape);
+// Step 1: supa-init--local (creates recordings dir)
+if (initSet.has(INIT_LOCAL)) {
+  console.log("Step 1: Rendering supa-init--local...");
+  const result = await renderTape(INIT_LOCAL);
   if (!result.ok) {
-    console.error("Init tape failed — aborting (other tapes depend on it).");
+    console.error("supa-init--local failed — aborting.");
     process.exit(1);
   }
 }
 
-// Render the rest in parallel
+// Step 2: Create .env so the CLI can write DB password during init
+console.log("\nStep 2: Creating .env in recordings dir...");
+writeFileSync(join(RECORDINGS_DIR, ".env"), "");
+
+// Step 3: supa-init (init with new project)
+if (initSet.has(INIT_CREATE)) {
+  console.log("\nStep 3: Rendering supa-init...");
+  const result = await renderTape(INIT_CREATE);
+  if (!result.ok) {
+    console.error("supa-init failed — aborting.");
+    process.exit(1);
+  }
+}
+
+// Step 4: Rest of tapes in parallel (recordings dir has project config + .env)
 if (restTapes.length > 0) {
-  console.log(`\nPhase 2: Rendering ${restTapes.length} tape(s) in parallel (concurrency: ${concurrency})...`);
+  console.log(`\nStep 4: Rendering ${restTapes.length} tape(s) in parallel (concurrency: ${concurrency})...`);
   failed = await renderBatch(restTapes, concurrency);
 }
 
-const total = tapeFiles.length;
+// Step 5: supa-init--connect (connects to existing project)
+if (initSet.has(INIT_CONNECT)) {
+  console.log("\nStep 5: Rendering supa-init--connect...");
+  const result = await renderTape(INIT_CONNECT);
+  if (!result.ok) failed++;
+}
+
+// Step 6: Cleanup — delete the project created in step 3
+cleanupDemoProject();
+
 console.log("");
-console.log(`Rendered ${total - failed}/${total} tapes.`);
+console.log(`Rendered ${totalToRender - failed}/${totalToRender} tapes.`);
 
 if (failed > 0) {
   console.error(`${failed} tape(s) failed.`);

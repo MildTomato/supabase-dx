@@ -39,5 +39,8 @@ pnpm-debug.log*
 cli/scripts/demos/generated/
 cli/demos/recordings/
 
+# Demo videos (mp4 are generated from webm)
+apps/docs/public/demos/*.mp4
+
 # External tools (not submodules)
 external/cli

@@ -11,11 +11,21 @@ import type { TapeFixture } from "./index.js";
 
 const randomSuffix = Math.random().toString(36).slice(2, 6);
 
-const SETUP = `# Setup: create demo directory (hidden from recording)
-Hide
-Type "rm -rf ../../../demos/recordings && mkdir -p ../../../demos/recordings && cd ../../../demos/recordings && rm -rf ./supabase ./.env"
+/** init--local runs first: wipes and recreates recordings dir from scratch */
+const SETUP_LOCAL = `Hide
+Type "rm -rf ../../../demos/recordings && mkdir -p ../../../demos/recordings && cd ../../../demos/recordings"
 Enter
 Sleep 1s
+Type "clear"
+Enter
+Sleep 500ms
+Show`;
+
+/** Other init tapes: cd into recordings, clear supabase dir only (keep .env) */
+const SETUP = `Hide
+Type "cd ../../../demos/recordings && rm -rf ./supabase"
+Enter
+Sleep 500ms
 Type "clear"
 Enter
 Sleep 500ms
@@ -27,7 +37,7 @@ Show`;
 export const initLocalFixture: TapeFixture = {
   category: "INTERACTIVE",
   height: 600,
-  tapeBody: `${SETUP}
+  tapeBody: `${SETUP_LOCAL}
 
 # Start init
 Type@50ms "supa init"

@@ -776,3 +776,31 @@ export function useDeleteLinkShare() {
     },
   })
 }
+
+// =============================================================================
+// SEARCH
+// =============================================================================
+
+export type SearchResult = {
+  result_type: 'file' | 'folder' | 'comment'
+  id: string
+  name: string
+  parent_id: string | null
+  snippet: string
+  rank: number
+  file_size: number | null
+  owner_id: string | null
+}
+
+export function useSearch(query: string) {
+  return useQuery({
+    queryKey: ['search', query] as const,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('search', { p_query: query, p_limit: 20 })
+      if (error) throw error
+      return (data ?? []) as SearchResult[]
+    },
+    enabled: query.trim().length >= 2,
+    retry: false,
+  })
+}

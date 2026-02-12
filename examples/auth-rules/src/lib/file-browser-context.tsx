@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Folder, File } from "./types";
 
@@ -23,6 +23,7 @@ type FileBrowserContextValue = {
   currentFolder: string | null;
   currentFolderData: Folder | null; // Optimistic folder data for instant breadcrumb display
   navigateTo: (folderId: string | null, folderData?: Folder) => void;
+  navigateToFile: (folderId: string | null, file: File) => void;
   selectedFile: File | null;
   pendingFileId: string | null; // File ID from URL that needs to be loaded
   selectFile: (file: File | null) => void;
@@ -35,6 +36,9 @@ type FileBrowserContextValue = {
   moveTarget: MoveTarget;
   openMoveDialog: (resource: Folder | File, type: "folder" | "file") => void;
   closeMoveDialog: () => void;
+  isSearchOpen: boolean;
+  openSearch: () => void;
+  closeSearch: () => void;
 };
 
 const FileBrowserContext = createContext<FileBrowserContextValue | null>(null);
@@ -51,6 +55,8 @@ export function FileBrowserProvider({ children }: { children: ReactNode }) {
   const [shareTarget, setShareTarget] = useState<ShareTarget>(null);
   const [linkShareTarget, setLinkShareTarget] = useState<LinkShareTarget>(null);
   const [moveTarget, setMoveTarget] = useState<MoveTarget>(null);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const skipUrlSyncRef = useRef(false);
 
   // Build URL with current state
   const buildUrl = useCallback((folderId: string | null, fileId: string | null) => {
@@ -61,7 +67,12 @@ export function FileBrowserProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Sync URL to state when URL changes (e.g., browser back/forward)
+  // Skip when we just triggered a programmatic navigation (router.push)
   useEffect(() => {
+    if (skipUrlSyncRef.current) {
+      skipUrlSyncRef.current = false;
+      return;
+    }
     if (folderFromUrl !== currentFolder) {
       setCurrentFolder(folderFromUrl);
       // Clear optimistic data when navigating via URL (back/forward)
@@ -82,6 +93,14 @@ export function FileBrowserProvider({ children }: { children: ReactNode }) {
 
     // Update URL (clear file when navigating folders)
     router.push(buildUrl(folderId, null));
+  }, [router, buildUrl]);
+
+  const navigateToFile = useCallback((folderId: string | null, file: File) => {
+    skipUrlSyncRef.current = true;
+    setCurrentFolder(folderId);
+    setCurrentFolderData(null);
+    setSelectedFile(file);
+    router.push(buildUrl(folderId, file.id));
   }, [router, buildUrl]);
 
   const selectFile = useCallback((file: File | null) => {
@@ -114,12 +133,21 @@ export function FileBrowserProvider({ children }: { children: ReactNode }) {
     setMoveTarget(null);
   }, []);
 
+  const openSearch = useCallback(() => {
+    setIsSearchOpen(true);
+  }, []);
+
+  const closeSearch = useCallback(() => {
+    setIsSearchOpen(false);
+  }, []);
+
   return (
     <FileBrowserContext.Provider
       value={{
         currentFolder,
         currentFolderData,
         navigateTo,
+        navigateToFile,
         selectedFile,
         pendingFileId: fileFromUrl && !selectedFile ? fileFromUrl : null,
         selectFile,
@@ -132,6 +160,9 @@ export function FileBrowserProvider({ children }: { children: ReactNode }) {
         moveTarget,
         openMoveDialog,
         closeMoveDialog,
+        isSearchOpen,
+        openSearch,
+        closeSearch,
       }}
     >
       {children}

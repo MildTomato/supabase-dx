@@ -87,6 +87,7 @@ export function FileBrowserProvider({ children }: { children: ReactNode }) {
   }, [folderFromUrl, fileFromUrl, currentFolder, selectedFile]);
 
   const navigateTo = useCallback((folderId: string | null, folderData?: Folder) => {
+    skipUrlSyncRef.current = true;
     setSelectedFile(null);
     setCurrentFolder(folderId);
     setCurrentFolderData(folderData ?? null);

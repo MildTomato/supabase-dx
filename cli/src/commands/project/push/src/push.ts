@@ -28,6 +28,13 @@ import {
 } from "@/lib/pg-delta.js";
 import { printCommandHeader, S_BAR } from "@/components/command-header.js";
 import { C } from "@/lib/colors.js";
+import { injectLocalEnvVars } from "@/lib/env-file.js";
+import {
+  getEnabledFeatures,
+  resolveAllVariables,
+  diagnoseBindings,
+  formatDiagnostics,
+} from "@supabase-dx/config";
 
 export interface PushOptions {
   profile?: string;
@@ -233,8 +240,39 @@ export async function pushCommand(options: PushOptions) {
   const { cwd, config, branch: currentBranch, profile, projectRef, token } =
     await resolveProjectContext(options);
 
+  // Inject local env vars so implicit binding can resolve canonical names
+  injectLocalEnvVars(cwd);
+
   const client = createClient(token);
   const projectConfig = config as ProjectConfig;
+
+  // Validate enabled features have required variables
+  if (!migrationsOnly) {
+    const enabledFeatures = getEnabledFeatures(projectConfig);
+    if (enabledFeatures.length > 0) {
+      const lookup = (varName: string) => process.env[varName];
+      const resolved = resolveAllVariables(enabledFeatures, projectConfig, lookup);
+      const diagnostics = diagnoseBindings(resolved, enabledFeatures);
+      const errors = diagnostics.filter((d) => d.level === "error");
+
+      if (errors.length > 0) {
+        const formatted = formatDiagnostics(diagnostics);
+        if (options.json) {
+          console.log(
+            JSON.stringify({
+              status: "error",
+              message: "Missing required environment variables",
+              diagnostics,
+            })
+          );
+        } else {
+          console.error(chalk.red("\nMissing required environment variables:\n"));
+          console.error(formatted);
+        }
+        process.exit(1);
+      }
+    }
+  }
 
   if (!options.json) {
     requireTTY();

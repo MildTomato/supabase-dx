@@ -21,6 +21,7 @@
     "demos": "pnpm demos:generate && pnpm demos:render"
   },
   "dependencies": {
+    "@supabase-dx/config": "workspace:*",
     "@ariga/atlas": "^1.0.0",
     "@clack/prompts": "^1.0.0",
     "@electric-sql/pglite": "^0.3.15",

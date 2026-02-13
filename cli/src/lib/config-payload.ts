@@ -141,12 +141,33 @@ export function buildAuthPayload(config: ProjectConfig): UpdateAuthBody | null {
   if (auth.external) {
     for (const [provider, settings] of Object.entries(auth.external)) {
       const prefix = `external_${provider}`;
+      const providerUpper = provider.toUpperCase();
+
       if (settings.enabled !== undefined)
         payload[`${prefix}_enabled`] = settings.enabled;
-      if (settings.client_id !== undefined)
+
+      // client_id: use config value, or implicit binding fallback
+      if (settings.client_id !== undefined) {
         payload[`${prefix}_client_id`] = settings.client_id;
-      if (settings.secret !== undefined)
+      } else if (settings.enabled) {
+        const implicitClientId =
+          process.env[`SUPABASE_AUTH_EXTERNAL_${providerUpper}_CLIENT_ID`];
+        if (implicitClientId) {
+          payload[`${prefix}_client_id`] = implicitClientId;
+        }
+      }
+
+      // secret: use config value, or implicit binding fallback
+      if (settings.secret !== undefined) {
         payload[`${prefix}_secret`] = settings.secret;
+      } else if (settings.enabled) {
+        const implicitSecret =
+          process.env[`SUPABASE_AUTH_EXTERNAL_${providerUpper}_SECRET`];
+        if (implicitSecret) {
+          payload[`${prefix}_secret`] = implicitSecret;
+        }
+      }
+
       if (settings.redirect_uri !== undefined)
         payload[`${prefix}_redirect_uri`] = settings.redirect_uri;
       if (settings.url !== undefined) payload[`${prefix}_url`] = settings.url;

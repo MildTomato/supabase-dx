@@ -44,3 +44,6 @@ apps/docs/public/demos/*.mp4
 
 # External tools (not submodules)
 external/cli
+
+# Private specs
+auth-rules-sql/spec.md

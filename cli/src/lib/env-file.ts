@@ -182,6 +182,33 @@ export function isSensitiveKey(key: string): boolean {
 }
 
 /**
+ * Inject local env vars into process.env for implicit binding.
+ * Loads supabase/.env then supabase/.env.local.
+ * Only sets vars not already present, so OS env always wins.
+ */
+export function injectLocalEnvVars(cwd: string): void {
+  // Load supabase/.env first
+  const envParsed = loadLocalEnvVars(cwd);
+  for (const v of envParsed.variables) {
+    if (process.env[v.key] === undefined) {
+      process.env[v.key] = v.value;
+    }
+  }
+
+  // Then load supabase/.env.local (overrides .env but not OS env)
+  const envLocalPath = path.join(cwd, "supabase", ".env.local");
+  if (fs.existsSync(envLocalPath)) {
+    const localContent = fs.readFileSync(envLocalPath, "utf-8");
+    const localParsed = parseEnvFile(localContent);
+    for (const v of localParsed.variables) {
+      if (process.env[v.key] === undefined) {
+        process.env[v.key] = v.value;
+      }
+    }
+  }
+}
+
+/**
  * Resolve a variable from local environment
  * Resolution order: OS env > .env.local > .env (first match wins)
  */

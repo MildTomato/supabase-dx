@@ -2,14 +2,12 @@
  * Shared setup for all env subcommands.
  *
  * Handles the repeated pattern:
- *   1. JSON mode → resolve context, output stub, return null
+ *   1. JSON mode → resolve context, return it for command-specific JSON output
  *   2. Interactive → requireTTY, resolve context, print header + context lines
  *
- * Returns ProjectContext for the caller to continue with business logic,
- * or null if JSON mode was fully handled.
+ * Returns ProjectContext for the caller to continue with business logic.
  */
 
-import chalk from "chalk";
 import {
   resolveProjectContext,
   requireTTY,
@@ -26,27 +24,19 @@ export interface EnvCommandSetup {
 }
 
 /**
- * Set up an env subcommand. Handles JSON stub, TTY check, project resolution,
+ * Set up an env subcommand. Handles TTY check, project resolution,
  * and prints the command header with context lines.
  *
- * Returns null if JSON mode was handled (caller should return early).
- * Returns ProjectContext if interactive mode is ready for business logic.
+ * Returns ProjectContext for business logic. JSON mode commands
+ * handle their own output after receiving the context.
  */
 export async function setupEnvCommand(
   options: EnvCommandSetup
 ): Promise<ProjectContext | null> {
-  // JSON mode: resolve context, output stub, signal caller to return
+  // JSON mode: resolve context and return it for command-specific handling
   if (options.json) {
-    await resolveProjectContext(options);
-    // TODO: Remove this stub when API is available — each command
-    // will handle its own JSON output after calling resolveProjectContext directly.
-    console.log(
-      JSON.stringify({
-        status: "not_implemented",
-        message: "Environment API not yet available",
-      })
-    );
-    return null;
+    const ctx = await resolveProjectContext(options);
+    return ctx;
   }
 
   requireTTY();
@@ -65,9 +55,4 @@ export async function setupEnvCommand(
   });
 
   return ctx;
-}
-
-/** Consistent stub message for unimplemented interactive commands */
-export function printNotImplemented(): void {
-  console.log(chalk.yellow("  Environment API not yet available."));
 }

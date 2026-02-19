@@ -343,6 +343,9 @@ const ProjectConfigSchema = z
 
     // DX-specific profiles (old system: for branch-based environment mapping)
     profiles: z.record(ProfileSchema).optional(),
+
+    // Environment name mappings (branch pattern -> environment name)
+    environments: z.record(z.string()).optional(),
   })
   .passthrough();
 
@@ -521,4 +524,26 @@ export function listProfileNames(config: ProjectConfig): string[] {
  */
 export function getWorkflowProfile(config: ProjectConfig): WorkflowProfile {
   return config.workflow_profile || "solo";
+}
+
+/**
+ * Get environment name for a branch using config.environments mapping.
+ * Falls back to "development" if no match.
+ */
+export function getEnvironmentForBranch(
+  config: ProjectConfig,
+  branch: string
+): string {
+  const environments = config.environments as
+    | Record<string, string>
+    | undefined;
+  if (!environments) return "development";
+
+  for (const [pattern, envName] of Object.entries(environments)) {
+    if (matchBranchPattern(branch, pattern)) {
+      return envName;
+    }
+  }
+
+  return "development";
 }
